@@ -1,0 +1,11 @@
+[package]
+name = "wasmcloud-operator-types"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+k8s-openapi = {workspace = true}
+kube = {workspace = true, features = ["derive"]}
+schemars = {workspace = true}
+serde = {workspace = true}
+serde_json = {workspace = true}

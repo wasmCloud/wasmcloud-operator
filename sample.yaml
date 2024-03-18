@@ -1,0 +1,20 @@
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: my-wasmcloud-cluster
+  namespace: default
+spec:
+  hostReplicas: 2
+  issuers:
+    - CDKF6OKPOBQKAX57UOXO7SCHURTOZWKWIVPC2HFJTGFXY5VJX44ECEHH
+  # The lattice to connect the hosts to
+  lattice: 83a5b52e-17cf-4080-bac8-f844099f142e
+  # Additional labels to apply to the host other than the defaults set in the controller
+  hostLabels:
+    test: value
+  # Which wasmCloud version to use
+  version: 0.81.0
+  # The name of a secret in the same namespace that provides the required secrets.
+  secretName: cluster-secrets
+  logLevel: INFO
+  natsAddress: nats://nats-cluster.default.svc.cluster.local
