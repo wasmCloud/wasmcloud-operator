@@ -3,7 +3,7 @@ use crate::{Error, Result};
 use anyhow::bail;
 use futures::StreamExt;
 use handlebars::Handlebars;
-use k8s_openapi::api::apps::v1::{Deployment, DeploymentSpec};
+use k8s_openapi::api::apps::v1::{DaemonSet, DaemonSetSpec, Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
     ConfigMap, ConfigMapVolumeSource, Container, ContainerPort, EnvVar, EnvVarSource, ExecAction,
     Lifecycle, LifecycleHandler, PodSpec, PodTemplateSpec, Secret, SecretKeySelector,
@@ -148,7 +148,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         return Err(e);
     };
 
-    if let Err(e) = configure_deployment(&cfg, ctx.clone()).await {
+    if let Err(e) = configure_hosts(&cfg, ctx.clone()).await {
         warn!("Failed to configure deployment: {}", e);
         return Err(e);
     };
@@ -210,14 +210,10 @@ async fn cleanup(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Acti
     Ok(Action::await_change())
 }
 
-fn deployment_spec(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> DeploymentSpec {
+fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplateSpec {
     let mut labels = BTreeMap::new();
     labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
     labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
-    let ls = LabelSelector {
-        match_labels: Some(labels.clone()),
-        ..Default::default()
-    };
 
     let mut wasmcloud_env = vec![
         EnvVar {
@@ -375,45 +371,74 @@ fn deployment_spec(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> Deployme
             ..Default::default()
         },
     ];
+    PodTemplateSpec {
+        metadata: Some(ObjectMeta {
+            labels: Some(labels),
+            ..Default::default()
+        }),
+        spec: Some(PodSpec {
+            service_account: Some(config.name_any()),
+            containers,
+            volumes: Some(vec![
+                Volume {
+                    name: "nats-config".to_string(),
+                    config_map: Some(ConfigMapVolumeSource {
+                        name: Some(config.name_any()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                Volume {
+                    name: "nats-creds".to_string(),
+                    secret: Some(SecretVolumeSource {
+                        secret_name: Some(config.spec.secret_name.clone()),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+            ]),
+            ..Default::default()
+        }),
+    }
+}
+
+fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {
+    let pod_template = pod_template(config, ctx);
+    let mut labels = BTreeMap::new();
+    labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
+    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
+    let ls = LabelSelector {
+        match_labels: Some(labels.clone()),
+        ..Default::default()
+    };
+
     DeploymentSpec {
         replicas: Some(config.spec.host_replicas as i32),
         selector: ls,
-        template: PodTemplateSpec {
-            metadata: Some(ObjectMeta {
-                labels: Some(labels),
-                ..Default::default()
-            }),
-            spec: Some(PodSpec {
-                service_account: Some(config.name_any()),
-                containers,
-                volumes: Some(vec![
-                    Volume {
-                        name: "nats-config".to_string(),
-                        config_map: Some(ConfigMapVolumeSource {
-                            name: Some(config.name_any()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                    Volume {
-                        name: "nats-creds".to_string(),
-                        secret: Some(SecretVolumeSource {
-                            secret_name: Some(config.spec.secret_name.clone()),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                ]),
-                ..Default::default()
-            }),
-        },
+        template: pod_template,
         ..Default::default()
     }
 }
 
-async fn configure_deployment(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<()> {
-    let mut spec = deployment_spec(config, ctx.clone());
+fn daemonset_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DaemonSetSpec {
+    let pod_template = pod_template(config, ctx);
+    let mut labels = BTreeMap::new();
+    labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
+    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
+    let ls = LabelSelector {
+        match_labels: Some(labels.clone()),
+        ..Default::default()
+    };
 
+    DaemonSetSpec {
+        selector: ls,
+        template: pod_template,
+        ..Default::default()
+    }
+}
+
+async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<()> {
+    let mut env_vars = vec![];
     if let Some(registry_credentials) = &config.spec.registry_credentials_secret {
         let secrets_client =
             Api::<Secret>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
@@ -443,7 +468,7 @@ async fn configure_deployment(config: &WasmCloudHostConfig, ctx: Arc<Context>) -
             )));
         }
 
-        let mut env_vars = vec![
+        env_vars = vec![
             EnvVar {
                 name: "OCI_REGISTRY_USER".to_string(),
                 value: Some(
@@ -477,32 +502,60 @@ async fn configure_deployment(config: &WasmCloudHostConfig, ctx: Arc<Context>) -
                 ..Default::default()
             },
         ];
+    }
 
+    if config.spec.daemonset {
+        let mut spec = daemonset_spec(config, ctx.clone());
         spec.template.spec.as_mut().unwrap().containers[1]
             .env
             .as_mut()
             .unwrap()
             .append(&mut env_vars);
-    }
-
-    let deployment = Deployment {
-        metadata: ObjectMeta {
-            name: Some(config.name_any()),
-            namespace: Some(config.namespace().unwrap()),
-            owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+        let ds = DaemonSet {
+            metadata: ObjectMeta {
+                name: Some(config.name_any()),
+                namespace: Some(config.namespace().unwrap()),
+                owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                ..Default::default()
+            },
+            spec: Some(spec),
             ..Default::default()
-        },
-        spec: Some(spec),
-        ..Default::default()
+        };
+
+        let api = Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
+        api.patch(
+            &config.name_any(),
+            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+            &Patch::Apply(ds),
+        )
+        .await?;
+    } else {
+        let mut spec = deployment_spec(config, ctx.clone());
+        spec.template.spec.as_mut().unwrap().containers[1]
+            .env
+            .as_mut()
+            .unwrap()
+            .append(&mut env_vars);
+        let deployment = Deployment {
+            metadata: ObjectMeta {
+                name: Some(config.name_any()),
+                namespace: Some(config.namespace().unwrap()),
+                owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                ..Default::default()
+            },
+            spec: Some(spec),
+            ..Default::default()
+        };
+
+        let api = Api::<Deployment>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
+        api.patch(
+            &config.name_any(),
+            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+            &Patch::Apply(deployment),
+        )
+        .await?;
     };
 
-    let api = Api::<Deployment>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
-    api.patch(
-        &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
-        &Patch::Apply(deployment),
-    )
-    .await?;
     Ok(())
 }
 

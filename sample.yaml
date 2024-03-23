@@ -18,3 +18,5 @@ spec:
   secretName: cluster-secrets
   logLevel: INFO
   natsAddress: nats://nats-cluster.default.svc.cluster.local
+  # Enable the following to run the wasmCloud hosts as a DaemonSet
+  #daemonset: true
