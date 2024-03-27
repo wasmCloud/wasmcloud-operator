@@ -28,11 +28,14 @@ spec:
   hostLabels:
     some-label: value
   # Which wasmCloud version to use
-  version: 0.81.0
+  version: 0.82.0
   # The name of a secret in the same namespace that provides the required secrets.
   secretName: cluster-secrets
   # Enable the following to run the wasmCloud hosts as a DaemonSet
   #daemonset: true
+  # The name of the image pull secret to use with wasmCloud hosts so that they
+  # can authenticate to a private registry to pull components.
+  # registryCredentialsSecret: my-registry-secret
 ```
 
 The CRD requires a Kubernetes Secret with the following keys:
@@ -48,12 +51,22 @@ data:
   WASMCLOUD_CLUSTER_SEED: <seed>
   # Only required if using a NATS creds file
   # nats.creds: <base64 encoded creds file>
-  # Only required if using OCI private registry
-  # OCI_REGISTRY_PASSWORD: <password>
 ```
 
 The operator will fail to provision the wasmCloud Deployment if any of these
 secrets are missing!
+
+### Image Pull Secrets
+
+You can also specify an image pull secret to use use with the wasmCloud hosts
+so that they can pull components from a private registry. This secret needs to
+be in the same namespace as the WasmCloudHostConfig CRD and must be a
+`kubernetes.io/dockerconfigjson` type secret. See the [Kubernetes
+documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#registry-secret-existing-credentials)
+for more information on how to provision that secret.
+
+Once it is created, you can reference it in the WasmCloudHostConfig CRD by
+setting the `registryCredentialsSecret` field to the name of the secret.
 
 ## Deploying the operator
 
