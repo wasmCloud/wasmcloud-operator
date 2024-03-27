@@ -17,6 +17,7 @@ use std::collections::HashMap;
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WasmCloudHostConfigSpec {
+    #[serde(default = "default_host_replicas")]
     pub host_replicas: u32,
     pub issuers: Vec<String>,
     pub lattice: String,
@@ -37,6 +38,12 @@ pub struct WasmCloudHostConfigSpec {
     pub jetstream_domain: String,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    #[serde(default)]
+    pub daemonset: bool,
+}
+
+fn default_host_replicas() -> u32 {
+    1
 }
 
 fn default_jetstream_domain() -> String {
