@@ -470,7 +470,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
 
         env_vars = vec![
             EnvVar {
-                name: "OCI_REGISTRY_USER".to_string(),
+                name: "WASMCLOUD_OCI_REGISTRY_USER".to_string(),
                 value: Some(
                     docker_config
                         .auths
@@ -483,7 +483,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
                 ..Default::default()
             },
             EnvVar {
-                name: "OCI_REGISTRY_PASSWORD".to_string(),
+                name: "WASMCLOUD_OCI_REGISTRY_PASSWORD".to_string(),
                 value: Some(
                     docker_config
                         .auths
@@ -497,7 +497,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
                 ..Default::default()
             },
             EnvVar {
-                name: "OCI_REGISTRY".to_string(),
+                name: "WASMCLOUD_OCI_REGISTRY".to_string(),
                 value: Some(docker_config.auths.keys().next().unwrap().clone()),
                 ..Default::default()
             },
