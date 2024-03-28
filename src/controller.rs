@@ -315,9 +315,11 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
 
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
     let mut wasmcloud_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
-    if let Some(resources) = &config.spec.resources {
-        nats_resources = resources.nats.clone();
-        wasmcloud_resources = resources.wasmcloud.clone();
+    if let Some(scheduling_options) = &config.spec.scheduling_options {
+        if let Some(resources) = &scheduling_options.resources {
+            nats_resources = resources.nats.clone();
+            wasmcloud_resources = resources.wasmcloud.clone();
+        }
     }
 
     let containers = vec![
@@ -371,14 +373,34 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
             ..Default::default()
         },
     ];
-    PodTemplateSpec {
+
+    let mut volumes = vec![
+        Volume {
+            name: "nats-config".to_string(),
+            config_map: Some(ConfigMapVolumeSource {
+                name: Some(config.name_any()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        Volume {
+            name: "nats-creds".to_string(),
+            secret: Some(SecretVolumeSource {
+                secret_name: Some(config.spec.secret_name.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    ];
+    let service_account = config.name_any();
+    let mut template = PodTemplateSpec {
         metadata: Some(ObjectMeta {
             labels: Some(labels),
             ..Default::default()
         }),
         spec: Some(PodSpec {
             service_account: Some(config.name_any()),
-            containers,
+            containers: containers.clone(),
             volumes: Some(vec![
                 Volume {
                     name: "nats-config".to_string(),
@@ -399,7 +421,21 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
             ]),
             ..Default::default()
         }),
-    }
+    };
+
+    if let Some(scheduling_options) = &config.spec.scheduling_options {
+        if let Some(pod_overrides) = &scheduling_options.pod_template_additions {
+            let mut overrides = pod_overrides.clone();
+            overrides.service_account_name = Some(service_account);
+            overrides.containers = containers.clone();
+            if let Some(vols) = overrides.volumes {
+                volumes.extend(vols);
+            }
+            overrides.volumes = Some(volumes);
+            template.spec = Some(overrides);
+        }
+    };
+    template
 }
 
 fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {
@@ -504,31 +540,34 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
         ];
     }
 
-    if config.spec.daemonset {
-        let mut spec = daemonset_spec(config, ctx.clone());
-        spec.template.spec.as_mut().unwrap().containers[1]
-            .env
-            .as_mut()
-            .unwrap()
-            .append(&mut env_vars);
-        let ds = DaemonSet {
-            metadata: ObjectMeta {
-                name: Some(config.name_any()),
-                namespace: Some(config.namespace().unwrap()),
-                owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+    if let Some(scheduling_options) = &config.spec.scheduling_options {
+        if scheduling_options.daemonset {
+            let mut spec = daemonset_spec(config, ctx.clone());
+            spec.template.spec.as_mut().unwrap().containers[1]
+                .env
+                .as_mut()
+                .unwrap()
+                .append(&mut env_vars);
+            let ds = DaemonSet {
+                metadata: ObjectMeta {
+                    name: Some(config.name_any()),
+                    namespace: Some(config.namespace().unwrap()),
+                    owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                    ..Default::default()
+                },
+                spec: Some(spec),
                 ..Default::default()
-            },
-            spec: Some(spec),
-            ..Default::default()
-        };
+            };
 
-        let api = Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
-        api.patch(
-            &config.name_any(),
-            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
-            &Patch::Apply(ds),
-        )
-        .await?;
+            let api =
+                Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
+            api.patch(
+                &config.name_any(),
+                &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+                &Patch::Apply(ds),
+            )
+            .await?;
+        }
     } else {
         let mut spec = deployment_spec(config, ctx.clone());
         spec.template.spec.as_mut().unwrap().containers[1]
