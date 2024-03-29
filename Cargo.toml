@@ -25,7 +25,6 @@ async-nats = {workspace = true}
 axum = {workspace = true}
 axum-server = {workspace = true}
 anyhow = {workspace = true}
-atty = {workspace = true}
 ctrlc = {workspace = true}
 futures = {workspace = true}
 handlebars = {workspace = true}
@@ -57,7 +56,6 @@ async-nats = "0.33"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
-atty = "0.2"
 ctrlc = "3"
 futures = "0.3"
 handlebars = "5.1"

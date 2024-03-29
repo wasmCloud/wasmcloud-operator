@@ -16,6 +16,7 @@ use opentelemetry::sdk::{
     trace::{self, RandomIdGenerator, Sampler},
     Resource as OTELResource,
 };
+use std::io::IsTerminal;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tracing::{error, info};
@@ -87,7 +88,7 @@ fn configure_tracing(enabled: bool) -> anyhow::Result<()> {
     let env_filter_layer = tracing_subscriber::EnvFilter::from_default_env();
     let log_layer = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
-        .with_ansi(atty::is(atty::Stream::Stderr));
+        .with_ansi(std::io::stderr().is_terminal());
 
     let otel_layer = tracing_opentelemetry::layer().with_tracer(tracer);
 
