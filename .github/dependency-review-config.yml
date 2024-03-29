@@ -1,0 +1,9 @@
+# For more details on the available options, see:
+# https://github.com/actions/dependency-review-action?tab=readme-ov-file#configuration-options
+fail-on-severity: critical
+
+comment-summary-in-pr: always
+
+show-openssf-scorecard: true
+
+warn-on-openssf-scorecard-level: 3
