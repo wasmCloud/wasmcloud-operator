@@ -18,5 +18,23 @@ spec:
   secretName: cluster-secrets
   logLevel: INFO
   natsAddress: nats://nats-cluster.default.svc.cluster.local
-  # Enable the following to run the wasmCloud hosts as a DaemonSet
-  #daemonset: true
+  # Additional options to control how the underlying wasmCloud hosts are scheduled in Kubernetes.
+  # This includes setting resource requirements for the nats and wasmCloud host
+  # containers along with any additional pot template settings.
+  #schedulingOptions:
+    # Enable the following to run the wasmCloud hosts as a DaemonSet
+    #daemonset: true
+    # Set the resource requirements for the nats and wasmCloud host containers.
+    #resources:
+    #  nats:
+    #    requests:
+    #      cpu: 100m
+    # wasmCloudHost:
+    #    requests:
+    #      cpu: 100m
+    # Any additional pod template settings to apply to the wasmCloud host pods.
+    # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
+    # Note that you *cannot* set the `containers` field here as it is managed by the controller.
+    #pod_template_additions:
+    #  nodeSelector:
+    #    kubernetes.io/os: linux
