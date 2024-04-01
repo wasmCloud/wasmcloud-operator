@@ -1,12 +1,14 @@
-use crate::docker_secret::DockerConfigJson;
-use crate::{Error, Result};
+use crate::{
+    docker_secret::DockerConfigJson, resources::application::get_client, services::ServiceWatcher,
+    Error, Result,
+};
 use anyhow::bail;
 use futures::StreamExt;
 use handlebars::Handlebars;
 use k8s_openapi::api::apps::v1::{DaemonSet, DaemonSetSpec, Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
     ConfigMap, ConfigMapVolumeSource, Container, ContainerPort, EnvVar, EnvVarSource, ExecAction,
-    Lifecycle, LifecycleHandler, PodSpec, PodTemplateSpec, Secret, SecretKeySelector,
+    Lifecycle, LifecycleHandler, Pod, PodSpec, PodTemplateSpec, Secret, SecretKeySelector,
     SecretVolumeSource, Service, ServiceAccount, ServicePort, ServiceSpec, Volume, VolumeMount,
 };
 use k8s_openapi::api::rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject};
@@ -28,23 +30,29 @@ use std::collections::{BTreeMap, HashMap};
 use std::str::from_utf8;
 use std::sync::Arc;
 use tokio::{sync::RwLock, time::Duration};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use wasmcloud_operator_types::v1alpha1::{
     AppStatus, WasmCloudHostConfig, WasmCloudHostConfigStatus,
 };
 
-pub static CLUSTER_CONFIG_FINALIZER: &str = "wasmcloudhost.k8s.wasmcloud.dev";
+pub static CLUSTER_CONFIG_FINALIZER: &str = "operator.k8s.wasmcloud.dev/wasmcloud-host-config";
+pub static SERVICE_FINALIZER: &str = "operator.k8s.wasmcloud.dev/service";
 
 /// Default host that identifies a host that is running in kubernetes
 pub const K8S_HOST_TAG: &str = "kubernetes";
 /// wasmCloud custom label for controlling routing
 pub const WASMCLOUD_ROUTE_TO_LABEL: &str = "wasmcloud.dev/route-to";
+/// Prefix used to apply host labels to pods
+pub const WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX: &str = "host-label.k8s.wasmcloud.dev";
+/// Label used to identify resources managed by the wasmcloud operator
+pub const WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT: &str =
+    "app.kubernetes.io/managed-by=wasmcloud-operator";
 
-#[derive(Clone)]
 pub struct Context {
     pub client: Client,
     pub wasmcloud_config: WasmcloudConfig,
     pub nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
+    service_watcher: ServiceWatcher,
 }
 
 #[derive(Clone, Default)]
@@ -177,7 +185,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
             version: a.version.clone(),
         })
         .collect::<Vec<AppStatus>>();
-    info!("Found apps: {:?}", app_names);
+    debug!(app_names=?app_names, "Found apps");
     cfg.status = Some(WasmCloudHostConfigStatus {
         apps: app_names.clone(),
         app_count: app_names.len() as u32,
@@ -195,6 +203,32 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
             e
         })?;
 
+    // Start the watcher so that services are automatically created in the cluster.
+    let nats_client = get_client(
+        &cfg.spec.nats_address,
+        ctx.nats_creds.clone(),
+        NameNamespace::new(name.clone(), ns.clone()),
+    )
+    .await
+    .map_err(|e| {
+        warn!("Failed to get nats client: {}", e);
+        Error::NatsError(format!("Failed to get nats client: {}", e))
+    })?;
+
+    ctx.service_watcher
+        .watch(nats_client, ns.clone(), cfg.spec.lattice.clone())
+        .await
+        .map_err(|e| {
+            warn!("Failed to start service watcher: {}", e);
+            Error::NatsError(format!("Failed to watch services: {}", e))
+        })?;
+
+    // Reconcile the services in the lattice so that any existing apps are refected as services in
+    // the cluster.
+    ctx.service_watcher
+        .reconcile_services(apps, cfg.spec.lattice.clone())
+        .await;
+
     Ok(Action::requeue(Duration::from_secs(5 * 60)))
 }
 
@@ -204,16 +238,25 @@ async fn cleanup(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Acti
     let name = config.name_any();
     let _configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &ns);
 
-    let nst = NameNamespace::new(name.clone(), ns.clone());
-    ctx.nats_creds.write().await.remove(&nst);
+    if config.metadata.deletion_timestamp.is_some() {
+        let nst = NameNamespace::new(name.clone(), ns.clone());
+        ctx.nats_creds.write().await.remove(&nst);
+    }
+
+    debug!(name, namespace = ns, "Cleaning up service");
+    ctx.service_watcher
+        .stop_watch(config.spec.lattice.clone(), ns.clone())
+        .await
+        .map_err(|e| {
+            warn!("Failed to stop service watcher: {}", e);
+            Error::NatsError(format!("Failed to stop service watcher: {}", e))
+        })?;
 
     Ok(Action::await_change())
 }
 
 fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplateSpec {
-    let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
-    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
+    let labels = pod_labels(config);
 
     let mut wasmcloud_env = vec![
         EnvVar {
@@ -440,11 +483,8 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
 
 fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {
     let pod_template = pod_template(config, ctx);
-    let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
-    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
     let ls = LabelSelector {
-        match_labels: Some(labels.clone()),
+        match_labels: Some(selector_labels(config)),
         ..Default::default()
     };
 
@@ -456,13 +496,34 @@ fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Deploymen
     }
 }
 
+fn pod_labels(config: &WasmCloudHostConfig) -> BTreeMap<String, String> {
+    let mut labels = selector_labels(config);
+    labels.extend(common_labels());
+    if let Some(host_labels) = &config.spec.host_labels {
+        for (k, v) in host_labels.iter() {
+            labels.insert(
+                format!("{WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX}/{}", k.clone()),
+                v.clone(),
+            );
+        }
+    }
+    labels
+}
+
+fn selector_labels(config: &WasmCloudHostConfig) -> BTreeMap<String, String> {
+    let mut labels = BTreeMap::new();
+    labels.insert(
+        "app.kubernetes.io/name".to_string(),
+        "wasmcloud".to_string(),
+    );
+    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
+    labels
+}
+
 fn daemonset_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DaemonSetSpec {
     let pod_template = pod_template(config, ctx);
-    let mut labels = BTreeMap::new();
-    labels.insert("app.kubernetes.io/name".to_string(), config.name_any());
-    labels.insert("app.kubernetes.io/instance".to_string(), config.name_any());
     let ls = LabelSelector {
-        match_labels: Some(labels.clone()),
+        match_labels: Some(selector_labels(config)),
         ..Default::default()
     };
 
@@ -553,6 +614,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
                     name: Some(config.name_any()),
                     namespace: Some(config.namespace().unwrap()),
                     owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                    labels: Some(common_labels()),
                     ..Default::default()
                 },
                 spec: Some(spec),
@@ -580,6 +642,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
                 name: Some(config.name_any()),
                 namespace: Some(config.namespace().unwrap()),
                 owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                labels: Some(common_labels()),
                 ..Default::default()
             },
             spec: Some(spec),
@@ -600,7 +663,10 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
 
 async fn configure_service(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<()> {
     let mut label_selector = BTreeMap::new();
-    label_selector.insert("app.kubernetes.io/name".to_string(), config.name_any());
+    label_selector.insert(
+        "app.kubernetes.io/name".to_string(),
+        "wasmcloud".to_string(),
+    );
     label_selector.insert("app.kubernetes.io/instance".to_string(), config.name_any());
 
     let mut labels = label_selector.clone();
@@ -811,18 +877,30 @@ pub async fn run(state: State) -> anyhow::Result<()> {
     let cms = Api::<ConfigMap>::all(client.clone());
     let deployments = Api::<Deployment>::all(client.clone());
     let secrets = Api::<Secret>::all(client.clone());
+    let services = Api::<Service>::all(client.clone());
+    let pods = Api::<Pod>::all(client.clone());
 
+    let watcher = ServiceWatcher::new(client.clone());
     let config = Config::default();
     let ctx = Context {
         client,
         wasmcloud_config: state.config.clone(),
         nats_creds: state.nats_creds.clone(),
+        service_watcher: watcher,
     };
 
+    let label_config_watcher = watcher::Config {
+        label_selector: Some(common_labels_selector()),
+        ..Default::default()
+    };
+
+    // TODO: Restrict these to use the right label selectors
     Controller::new(configs, watcher::Config::default())
         .owns(cms, watcher::Config::default())
-        .owns(deployments, watcher::Config::default())
+        .owns(deployments, label_config_watcher.clone())
         .owns(secrets, watcher::Config::default())
+        .owns(services, label_config_watcher.clone())
+        .owns(pods, label_config_watcher.clone())
         .with_config(config)
         .shutdown_on_signal()
         .run(reconcile, error_policy, Arc::new(ctx))
@@ -834,4 +912,20 @@ pub async fn run(state: State) -> anyhow::Result<()> {
         })
         .await;
     Ok(())
+}
+
+pub(crate) fn common_labels() -> BTreeMap<String, String> {
+    BTreeMap::from_iter(vec![
+        (
+            "app.kubernetes.io/name".to_string(),
+            "wasmcloud".to_string(),
+        ),
+        (
+            "app.kubernetes.io/managed-by".to_string(),
+            "wasmcloud-operator".to_string(),
+        ),
+    ])
+}
+fn common_labels_selector() -> String {
+    WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT.to_string()
 }

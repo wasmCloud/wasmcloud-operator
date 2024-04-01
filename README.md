@@ -117,6 +117,17 @@ command will start WADM as a Kubernetes deployment:
 kubectl kustomize build deploy/local | kubectl apply -f -
 ```
 
+## Automatically Syncing Kubernetes Services
+
+The operator automatically creates Kubernetes Services for wasmCloud
+applications. Right now this is limited only to applications that deploy the
+wasmCloud httpserver component using a `daemonscaler`, but additional support
+for `spreadscalers` will be added in the future.
+
+If you specify host label selectors on the `daemonscaler` then the operator
+will honor those labels and will only create a service for the pods that match
+those label selectors.
+
 ## Argo CD Health Check
 
 Argo CD provides a way to define a [custom health

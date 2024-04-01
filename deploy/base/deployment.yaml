@@ -49,6 +49,7 @@ rules:
       - services
       - configmaps
       - serviceaccounts
+      - pods
     verbs:
       - get
       - list
@@ -97,6 +98,17 @@ rules:
       - apiregistration.k8s.io
     resources:
       - apiservices
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+  - apiGroups:
+      - discovery.k8s.io
+    resources:
+      - endpointslices
     verbs:
       - create
       - delete
