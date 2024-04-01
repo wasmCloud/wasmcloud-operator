@@ -92,5 +92,5 @@ jobs:
             if [ -z "${chart:-}" ]; then
               break
             fi
-            helm push "${chart}" "oci://ghcr.io/${{ env.GHCR_REPO_NAMESPACE }}"
+            helm push "${chart}" "oci://ghcr.io/${{ env.GHCR_REPO_NAMESPACE }}/charts"
           done
