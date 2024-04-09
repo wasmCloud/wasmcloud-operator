@@ -44,6 +44,7 @@ impl IntoResponse for Error {
     }
 }
 
+pub mod config;
 pub mod controller;
 pub mod discovery;
 pub mod docker_secret;

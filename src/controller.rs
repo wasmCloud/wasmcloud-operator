@@ -1,6 +1,6 @@
 use crate::{
-    docker_secret::DockerConfigJson, resources::application::get_client, services::ServiceWatcher,
-    Error, Result,
+    config::OperatorConfig, docker_secret::DockerConfigJson, resources::application::get_client,
+    services::ServiceWatcher, Error, Result,
 };
 use anyhow::bail;
 use futures::StreamExt;
@@ -24,7 +24,6 @@ use kube::{
     Resource, ResourceExt,
 };
 use secrecy::{ExposeSecret, SecretString};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::{BTreeMap, HashMap};
 use std::str::from_utf8;
@@ -50,7 +49,7 @@ pub const WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT: &str =
 
 pub struct Context {
     pub client: Client,
-    pub wasmcloud_config: WasmcloudConfig,
+    pub wasmcloud_config: OperatorConfig,
     pub nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
     service_watcher: ServiceWatcher,
 }
@@ -89,9 +88,6 @@ impl Secrets {
         })
     }
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-pub struct WasmcloudConfig {}
 
 pub async fn reconcile(cluster: Arc<WasmCloudHostConfig>, ctx: Arc<Context>) -> Result<Action> {
     let cluster_configs: Api<WasmCloudHostConfig> =
@@ -854,11 +850,11 @@ impl NameNamespace {
 #[derive(Clone, Default)]
 pub struct State {
     pub nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
-    pub config: WasmcloudConfig,
+    pub config: OperatorConfig,
 }
 
 impl State {
-    pub fn new(config: WasmcloudConfig) -> Self {
+    pub fn new(config: OperatorConfig) -> Self {
         Self {
             config,
             ..Default::default()
@@ -880,7 +876,7 @@ pub async fn run(state: State) -> anyhow::Result<()> {
     let services = Api::<Service>::all(client.clone());
     let pods = Api::<Pod>::all(client.clone());
 
-    let watcher = ServiceWatcher::new(client.clone());
+    let watcher = ServiceWatcher::new(client.clone(), state.config.stream_replicas);
     let config = Config::default();
     let ctx = Context {
         client,

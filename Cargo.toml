@@ -27,6 +27,7 @@ axum-server = {workspace = true}
 anyhow = {workspace = true}
 ctrlc = {workspace = true}
 cloudevents-sdk = {workspace = true}
+config = {workspace = true}
 futures = {workspace = true}
 handlebars = {workspace = true}
 json-patch = {workspace = true}
@@ -58,6 +59,7 @@ async-nats = "0.33"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
+config = {version = "0.14", default-features = false, features = ["convert-case", "async"]}
 cloudevents-sdk = "0.7"
 ctrlc = "3"
 futures = "0.3"

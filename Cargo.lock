@@ -639,10 +639,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7328b20597b53c2454f0b1919720c25c7339051c02b72b7e05409e00b14132be"
+dependencies = [
+ "async-trait",
+ "convert_case",
+ "lazy_static",
+ "nom",
+ "pathdiff",
+ "serde",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28c122c3980598d243d63d9a704629a2d748d101f278052ff068be5a4423ab6f"
+
+[[package]]
+name = "convert_case"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec182b0ca2f35d8fc196cf3404988fd8b8c739a4d270ff118a398feb0cbec1ca"
+dependencies = [
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "core-foundation"
@@ -4029,7 +4052,7 @@ dependencies = [
  "chrono",
  "cloudevents-sdk",
  "command-group",
- "config",
+ "config 0.13.4",
  "dirs",
  "futures",
  "nkeys",
@@ -4315,6 +4338,7 @@ dependencies = [
  "axum",
  "axum-server",
  "cloudevents-sdk",
+ "config 0.14.0",
  "ctrlc",
  "futures",
  "handlebars 5.1.0",

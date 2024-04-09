@@ -1,7 +1,8 @@
 use anyhow::{anyhow, Result};
 use axum_server::{tls_rustls::RustlsConfig, Handle};
-use controller::{State, WasmcloudConfig};
+use controller::{config::OperatorConfig, State};
 
+use config::Config;
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::ObjectMeta;
 use k8s_openapi::kube_aggregator::pkg::apis::apiregistration::v1::{
@@ -31,9 +32,15 @@ async fn main() -> Result<()> {
         error!("Failed to configure tracing: {}", e);
         e
     })?;
-    info!("Starting controller");
+    info!("Starting operator");
 
-    let config = WasmcloudConfig {};
+    let cfg = Config::builder()
+        .add_source(config::Environment::with_prefix("WASMCLOUD_OPERATOR"))
+        .build()
+        .map_err(|e| anyhow!("Failed to build config: {}", e))?;
+    let config: OperatorConfig = cfg
+        .try_deserialize()
+        .map_err(|e| anyhow!("Failed to parse config: {}", e))?;
 
     let client = Client::try_default().await?;
     install_crd(&client).await?;

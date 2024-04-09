@@ -185,7 +185,7 @@ impl Watcher {
         let manifest = mp.manifest;
         if let Some(httpserver_service) = http_server_component(&manifest) {
             if let Some(address) = find_address(&manifest, httpserver_service.name.as_str()) {
-                debug!(address = address, "Found address");
+                debug!(address, "Found address");
                 if let Ok(addr) = address.parse::<SocketAddr>() {
                     debug!("Upserting service for manifest: {}", manifest.metadata.name);
                     self.tx
@@ -224,11 +224,12 @@ impl Watcher {
 pub struct ServiceWatcher {
     watchers: Arc<RwLock<HashMap<String, Watcher>>>,
     sender: mpsc::UnboundedSender<WatcherCommand>,
+    stream_replicas: u16,
 }
 
 impl ServiceWatcher {
     /// Creates a new service watcher.
-    pub fn new(k8s_client: KubeClient) -> Self {
+    pub fn new(k8s_client: KubeClient, stream_replicas: u16) -> Self {
         let (tx, mut rx) = mpsc::unbounded_channel::<WatcherCommand>();
 
         let client = k8s_client.clone();
@@ -264,6 +265,7 @@ impl ServiceWatcher {
         Self {
             watchers: Arc::new(RwLock::new(HashMap::new())),
             sender: tx,
+            stream_replicas,
         }
     }
 
@@ -324,7 +326,7 @@ impl ServiceWatcher {
                 retention: RetentionPolicy::WorkQueue,
                 storage: StorageType::File,
                 allow_rollup: false,
-                num_replicas: 1,
+                num_replicas: self.stream_replicas as usize,
                 mirror: Some(Source {
                     name: "wadm_events".to_string(),
                     subject_transforms: vec![SubjectTransform {
