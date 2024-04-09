@@ -29,6 +29,10 @@ pub struct WasmCloudHostConfigSpec {
     pub host_labels: Option<HashMap<String, String>>,
     /// The version of the wasmCloud host to deploy.
     pub version: String,
+    /// The image to use for the wasmCloud host.
+    /// If not provided, the default image for the version will be used.
+    /// Also if provided, the version field will be ignored.
+    pub image: Option<String>,
     /// The name of a secret containing the primary cluster issuer key along with an optional set
     /// of NATS credentials.
     pub secret_name: String,

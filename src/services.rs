@@ -30,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, warn};
 use wadm::{
     events::{Event, ManifestPublished, ManifestUnpublished},
-    model::{Manifest, TraitProperty},
+    model::{self, Manifest, Trait, TraitProperty},
     server::{GetResult, ModelSummary},
 };
 use wash_lib::app;
@@ -184,22 +184,22 @@ impl Watcher {
         debug!(manifest=?mp, "Handling manifest published event");
         let manifest = mp.manifest;
         if let Some(httpserver_service) = http_server_component(&manifest) {
-            if let Some(address) = find_address(&manifest, httpserver_service.name.as_str()) {
-                debug!(address, "Found address");
-                if let Ok(addr) = address.parse::<SocketAddr>() {
-                    debug!("Upserting service for manifest: {}", manifest.metadata.name);
-                    self.tx
-                        .send(WatcherCommand::UpsertService(ServiceParams {
-                            name: manifest.metadata.name.clone(),
-                            lattice_id: self.lattice_id.clone(),
-                            port: addr.port(),
-                            namespaces: self.namespaces.clone(),
-                            host_labels: httpserver_service.labels,
-                        }))
-                        .map_err(|e| anyhow::anyhow!("Error sending command to watcher: {}", e))?;
-                } else {
-                    error!(address = address, "Invalid address in manifest");
-                }
+            if let Ok(addr) = httpserver_service.address.parse::<SocketAddr>() {
+                debug!("Upserting service for manifest: {}", manifest.metadata.name);
+                self.tx
+                    .send(WatcherCommand::UpsertService(ServiceParams {
+                        name: manifest.metadata.name.clone(),
+                        lattice_id: self.lattice_id.clone(),
+                        port: addr.port(),
+                        namespaces: self.namespaces.clone(),
+                        host_labels: httpserver_service.labels,
+                    }))
+                    .map_err(|e| anyhow::anyhow!("Error sending command to watcher: {}", e))?;
+            } else {
+                error!(
+                    address = httpserver_service.address,
+                    "Invalid address in manifest"
+                );
             }
         }
         Ok(())
@@ -551,70 +551,99 @@ pub async fn create_or_update_service(
 
 #[derive(Default)]
 pub struct HttpServerComponent {
-    name: String,
     labels: Option<HashMap<String, String>>,
+    address: String,
 }
 
 /// Finds the httpserver component in a manifest and returns the details needed to create a service
 fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
-    for component in manifest.spec.components.iter() {
-        if let wadm::model::Properties::Capability { properties } = &component.properties {
-            if properties.contract == "wasmcloud:httpserver" {
-                let mut details = HttpServerComponent {
-                    name: component.name.clone(),
-                    ..Default::default()
-                };
+    let components: Vec<&model::Component> = manifest
+        .spec
+        .components
+        .iter()
+        // filter just for the wasmCloud httpserver for now. This should actually just filter for
+        // the http capability
+        .filter(|c| {
+            if let wadm::model::Properties::Capability { properties } = &c.properties {
+                if properties
+                    .image
+                    .starts_with("ghcr.io/wasmcloud/http-server")
+                {
+                    return true;
+                }
+            }
+            false
+        })
+        .collect();
 
-                // Store the set of labels for this component so that we can match them to hosts
-                // when creating the label selector on the service.
-                if let Some(traits) = &component.traits {
-                    for t in traits {
-                        // The only way we know how to properly create a service without
-                        // being told to in the manifest is if we're using a daemonscaler.
-                        // That guarantees a k8s service can route traffic to any pod in a
-                        // deployment and that it will actually handle the inbound request.
-                        // Alternatively we could try spying on wadm commands and
-                        // reconciling host inventories, but that might not be worth it.
-                        if t.trait_type != "daemonscaler" {
-                            continue;
+    let scalers: Vec<&Trait> = components
+        .iter()
+        .filter_map(|c| {
+            if let Some(t) = &c.traits {
+                for trait_ in t {
+                    if trait_.trait_type == "daemonscaler" {
+                        return Some(trait_);
+                    }
+                }
+            };
+            None
+        })
+        .collect();
+
+    // Right now we only support daemonscalers, so if we don't find any then we have nothing to do
+    if scalers.is_empty() {
+        return None;
+    }
+
+    let links: Vec<&Trait> = components
+        .iter()
+        .filter_map(|c| {
+            if let Some(t) = &c.traits {
+                for trait_ in t {
+                    if trait_.trait_type == "link" {
+                        return Some(trait_);
+                    }
+                }
+            };
+            None
+        })
+        .collect();
+
+    let mut details = HttpServerComponent::default();
+    let mut should_create_service = false;
+    for l in links {
+        match &l.properties {
+            TraitProperty::Link(props) => {
+                if props.namespace == "wasi"
+                    && props.package == "http"
+                    && props.interfaces.contains(&"incoming-handler".to_string())
+                {
+                    for p in props.source_config.iter() {
+                        if let Some(config_props) = &p.properties {
+                            if let Some(addr) = config_props.get("address") {
+                                details.address = addr.clone();
+                                should_create_service = true;
+                            };
                         }
-                        if let TraitProperty::SpreadScaler(scaler) = &t.properties {
-                            for spread in scaler.spread.iter() {
-                                spread.requirements.iter().for_each(|(k, v)| {
-                                    details
-                                        .labels
-                                        .get_or_insert_with(HashMap::new)
-                                        .insert(k.clone(), v.clone());
-                                });
-                            }
-                        }
-                        return Some(details);
                     }
                 }
             }
+            TraitProperty::SpreadScaler(scaler) => {
+                for spread in scaler.spread.iter() {
+                    spread.requirements.iter().for_each(|(k, v)| {
+                        details
+                            .labels
+                            .get_or_insert_with(HashMap::new)
+                            .insert(k.clone(), v.clone());
+                    });
+                }
+            }
+            _ => {}
         }
     }
-    None
-}
 
-/// Finds the address for a target in a manifest
-fn find_address(manifest: &Manifest, target: &str) -> Option<String> {
-    for component in manifest.spec.components.iter() {
-        if let wadm::model::Properties::Actor { properties: _ } = &component.properties {
-            if let Some(traits) = &component.traits {
-                for t in traits {
-                    if let wadm::model::TraitProperty::Linkdef(props) = &t.properties {
-                        if props.target == target {
-                            if let Some(values) = &props.values {
-                                if let Some(address) = values.get("address") {
-                                    return Some(address.clone());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    if should_create_service {
+        return Some(details);
     }
     None
 }
@@ -672,39 +701,45 @@ mod test {
 apiVersion: core.oam.dev/v1beta1
 kind: Application
 metadata:
-  name: echo
+  name: rust-http-hello-world
   annotations:
-    version: abc123
-    description: "wasmCloud Echo Example"
+    version: v0.0.1
+    description: "HTTP hello world demo in Rust, using the WebAssembly Component Model and WebAssembly Interfaces Types (WIT)"
+    experimental: "true"
 spec:
   components:
-    - name: echo
-      type: actor
+    - name: http-hello-world
+      type: component
       properties:
-        image: wasmcloud.azurecr.io/echo:0.3.8
+        image: wasmcloud.azurecr.io/http-hello-world:0.1.0
+        id: helloworld
       traits:
+        # Govern the spread/scheduling of the actor
         - type: spreadscaler
           properties:
-            replicas: 1
-        - type: linkdef
-          properties:
-            target: httpserver
-            values:
-              address: 0.0.0.0:8080
-
+            replicas: 5000
+    # Add a capability provider that mediates HTTP access
     - name: httpserver
       type: capability
       properties:
-        image: wasmcloud.azurecr.io/httpserver:0.17.0
-        contract: wasmcloud:httpserver
+        image: ghcr.io/wasmcloud/http-server:0.20.0
+        id: httpserver
       traits:
+        # Link the HTTP server, and inform it to listen on port 8080
+        # on the local machine
+        - type: link
+          properties:
+            target: http-hello-world
+            namespace: wasi
+            package: http
+            interfaces: [incoming-handler]
+            source_config:
+            - name: default-http
+              properties:
+                address: 0.0.0.0:8080
         - type: daemonscaler
           properties:
             replicas: 1
-            spread:
-            - name: test
-              requirements:
-                test: value
 "#;
         let m = serde_yaml::from_str::<Manifest>(manifest).unwrap();
         let component = http_server_component(&m);
@@ -714,39 +749,42 @@ spec:
 apiVersion: core.oam.dev/v1beta1
 kind: Application
 metadata:
-  name: echo
+  name: rust-http-hello-world
   annotations:
-    version: abc123
-    description: "wasmCloud Echo Example"
+    version: v0.0.1
+    description: "HTTP hello world demo in Rust, using the WebAssembly Component Model and WebAssembly Interfaces Types (WIT)"
+    experimental: "true"
 spec:
   components:
-    - name: echo
-      type: actor
+    - name: http-hello-world
+      type: component
       properties:
-        image: wasmcloud.azurecr.io/echo:0.3.8
+        image: wasmcloud.azurecr.io/http-hello-world:0.1.0
+        id: helloworld
       traits:
+        # Govern the spread/scheduling of the actor
         - type: spreadscaler
           properties:
-            replicas: 1
-        - type: linkdef
-          properties:
-            target: httpserver
-            values:
-              address: 0.0.0.0:8080
-
+            replicas: 5000
+    # Add a capability provider that mediates HTTP access
     - name: httpserver
       type: capability
       properties:
-        image: wasmcloud.azurecr.io/httpserver:0.17.0
-        contract: wasmcloud:httpserver
+        image: ghcr.io/wasmcloud/http-server:0.20.0
+        id: httpserver
       traits:
-        - type: spreadscaler
+        # Link the HTTP server, and inform it to listen on port 8080
+        # on the local machine
+        - type: link
           properties:
-            replicas: 1
-            spread:
-            - name: test
-              requirements:
-                test: value
+            target: http-hello-world
+            namespace: wasi
+            package: http
+            interfaces: [incoming-handler]
+            source_config:
+            - name: default-http
+              properties:
+                address: 0.0.0.0:8080
 "#;
         let m = serde_yaml::from_str::<Manifest>(manifest).unwrap();
         let component = http_server_component(&m);
