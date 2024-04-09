@@ -501,7 +501,7 @@ pub async fn list_apps(
     Ok(models)
 }
 
-async fn get_client(
+pub async fn get_client(
     cluster_url: &str,
     nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
     namespace: NameNamespace,

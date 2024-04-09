@@ -44,6 +44,7 @@ impl IntoResponse for Error {
     }
 }
 
+pub mod config;
 pub mod controller;
 pub mod discovery;
 pub mod docker_secret;
@@ -51,6 +52,7 @@ pub mod header;
 pub(crate) mod openapi;
 pub mod resources;
 pub mod router;
+pub(crate) mod services;
 pub(crate) mod table;
 
 pub use crate::controller::*;

@@ -26,6 +26,8 @@ axum = {workspace = true}
 axum-server = {workspace = true}
 anyhow = {workspace = true}
 ctrlc = {workspace = true}
+cloudevents-sdk = {workspace = true}
+config = {workspace = true}
 futures = {workspace = true}
 handlebars = {workspace = true}
 json-patch = {workspace = true}
@@ -42,6 +44,7 @@ serde_yaml = {workspace = true}
 thiserror = {workspace = true}
 time = {workspace = true}
 tokio = {workspace = true}
+tokio-util = {workspace = true}
 tracing = {workspace = true}
 tracing-opentelemetry = {workspace = true}
 tracing-subscriber = {workspace = true}
@@ -56,6 +59,8 @@ async-nats = "0.33"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
+config = {version = "0.14", default-features = false, features = ["convert-case", "async"]}
+cloudevents-sdk = "0.7"
 ctrlc = "3"
 futures = "0.3"
 handlebars = "5.1"
@@ -73,6 +78,7 @@ serde_yaml = "0.9"
 thiserror = "1"
 time = "0.3"
 tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
 tracing-opentelemetry = "0.20"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
