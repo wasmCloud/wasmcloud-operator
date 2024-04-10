@@ -84,8 +84,8 @@ tracing-opentelemetry = "0.20"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 utoipa = { version = "4.1", features = ["axum_extras"] }
 uuid = { version = "1", features = ["v5"] }
-wadm = "0.10"
-wash-lib = "0.17"
+wadm = "0.11.0-alpha.2"
+wash-lib = { git = "https://github.com/wasmcloud/wasmcloud.git",tag = "wash-cli-v0.27.0-alpha.2" }
 wasmcloud-operator-types = { version="*", path = "./crates/types" }
 
 [workspace]
