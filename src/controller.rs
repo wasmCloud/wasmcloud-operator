@@ -29,7 +29,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::str::from_utf8;
 use std::sync::Arc;
 use tokio::{sync::RwLock, time::Duration};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use wasmcloud_operator_types::v1alpha1::{
     AppStatus, WasmCloudHostConfig, WasmCloudHostConfigStatus,
 };
@@ -89,6 +89,7 @@ impl Secrets {
     }
 }
 
+#[instrument(level = "debug", skip(cluster, ctx))]
 pub async fn reconcile(cluster: Arc<WasmCloudHostConfig>, ctx: Arc<Context>) -> Result<Action> {
     let cluster_configs: Api<WasmCloudHostConfig> =
         Api::namespaced(ctx.client.clone(), &cluster.namespace().unwrap());
@@ -113,6 +114,7 @@ pub async fn reconcile(cluster: Arc<WasmCloudHostConfig>, ctx: Arc<Context>) -> 
     .map_err(|e| Error::FinalizerError(Box::new(e)))
 }
 
+#[instrument(level = "debug", skip(config, ctx), fields(name = config.name_any(), namespace = config.namespace().unwrap_or_default()))]
 async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Action> {
     let client = ctx.client.clone();
     let ns = config.namespace().unwrap();
@@ -228,6 +230,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     Ok(Action::requeue(Duration::from_secs(5 * 60)))
 }
 
+#[instrument(level = "debug", skip(config, ctx), fields(name = config.name_any(), namespace = config.namespace().unwrap_or_default()))]
 async fn cleanup(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Action> {
     let client = ctx.client.clone();
     let ns = config.namespace().unwrap();
@@ -871,6 +874,7 @@ fn error_policy(_object: Arc<WasmCloudHostConfig>, _error: &Error, _ctx: Arc<Con
     Action::requeue(Duration::from_secs(1))
 }
 
+#[instrument(level = "info", skip(state))]
 pub async fn run(state: State) -> anyhow::Result<()> {
     let client = Client::try_default().await?;
 

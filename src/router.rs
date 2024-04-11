@@ -13,7 +13,7 @@ use k8s_openapi::apimachinery::pkg::apis::meta::v1::{
 };
 use kube::core::{GroupVersionKind, ListMeta};
 use serde::Serialize;
-use tracing::error;
+use tracing::{error, instrument};
 
 use crate::{
     discovery::{
@@ -29,6 +29,7 @@ use crate::{
     State,
 };
 
+#[instrument(level = "debug", skip_all)]
 pub fn setup(state: State) -> Router {
     let openapi_router = openapi::router();
     Router::new()

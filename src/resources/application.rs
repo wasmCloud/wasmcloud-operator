@@ -19,7 +19,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
 use serde_json::json;
 use tokio::sync::RwLock;
-use tracing::error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 use wadm::{
     model::Manifest,
@@ -264,6 +264,7 @@ impl From<Vec<Manifest>> for ApplicationTable {
     post,
     path = "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications"
 )]
+#[instrument(level = "debug", skip(state, body))]
 pub async fn create_application(
     Path(namespace): Path<String>,
     AxumState(state): AxumState<State>,
@@ -376,6 +377,7 @@ pub async fn create_application(
 }
 
 #[utoipa::path(get, path = "/apis/core.oam.dev/v1beta1/applications")]
+#[instrument(level = "debug", skip(state))]
 pub async fn list_all_applications(
     TypedHeader(accept): TypedHeader<Accept>,
     AxumState(state): AxumState<State>,
@@ -434,6 +436,7 @@ pub async fn list_all_applications(
     get,
     path = "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications"
 )]
+#[instrument(level = "debug", skip(state))]
 pub async fn list_applications(
     TypedHeader(accept): TypedHeader<Accept>,
     Path(namespace): Path<String>,
@@ -483,6 +486,7 @@ pub async fn list_applications(
     }
 }
 
+#[instrument(level = "debug", skip(creds))]
 pub async fn list_apps(
     cluster_url: &str,
     creds: Option<&SecretString>,
@@ -501,6 +505,7 @@ pub async fn list_apps(
     Ok(models)
 }
 
+#[instrument(level = "debug", skip(nats_creds))]
 pub async fn get_client(
     cluster_url: &str,
     nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
@@ -523,6 +528,7 @@ pub async fn get_client(
     get,
     path = "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications/{name}"
 )]
+#[instrument(level = "debug", skip(state))]
 pub async fn get_application(
     TypedHeader(accept): TypedHeader<Accept>,
     Path((namespace, name)): Path<(String, String)>,
@@ -647,6 +653,7 @@ pub async fn get_application(
     patch,
     path = "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications/{name}"
 )]
+#[instrument(level = "debug", skip(state, body))]
 pub async fn patch_application(
     Path((namespace, name)): Path<(String, String)>,
     AxumState(state): AxumState<State>,
@@ -776,6 +783,7 @@ pub async fn patch_application(
     delete,
     path = "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications/{name}"
 )]
+#[instrument(level = "debug", skip(state))]
 pub async fn delete_application(
     Path((namespace, name)): Path<(String, String)>,
     AxumState(state): AxumState<State>,

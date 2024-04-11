@@ -27,7 +27,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, instrument, warn};
 use wadm::{
     events::{Event, ManifestPublished, ManifestUnpublished},
     model::{self, Manifest, Trait, TraitProperty},
@@ -271,6 +271,7 @@ impl ServiceWatcher {
 
     /// Reconciles services for a set of apps in a lattice.
     /// This intended to be called by the controller whenever it reconciles state.
+    #[instrument(level = "info", skip(self))]
     pub async fn reconcile_services(&self, apps: Vec<ModelSummary>, lattice_id: String) {
         if let Some(watcher) = self.watchers.read().await.get(lattice_id.as_str()) {
             for app in apps {
@@ -302,6 +303,7 @@ impl ServiceWatcher {
 
     /// Create a new [`Watcher`] for a lattice.
     /// It will return early if a [`Watcher`] already exists for the lattice.
+    #[instrument(level = "info", skip(self, client))]
     pub async fn watch(&self, client: Client, namespace: String, lattice_id: String) -> Result<()> {
         // If we're already watching this lattice then return early
         // TODO is there an easy way to do this with a read lock?
@@ -368,6 +370,7 @@ impl ServiceWatcher {
     }
 
     /// Stops watching a lattice by stopping the underlying [`Watcher`] if no namespaces require it.
+    #[instrument(level = "info", skip(self))]
     pub async fn stop_watch(&self, lattice_id: String, namespace: String) -> Result<()> {
         let mut watchers = self.watchers.write().await;
         if let Some(watcher) = watchers.get_mut(lattice_id.as_str()) {
@@ -387,6 +390,7 @@ impl ServiceWatcher {
 }
 
 /// Creates or updates a service in the cluster based on the provided parameters.
+#[instrument(level = "info", skip(k8s_client))]
 pub async fn create_or_update_service(
     k8s_client: KubeClient,
     params: &ServiceParams,
@@ -556,6 +560,7 @@ pub struct HttpServerComponent {
 }
 
 /// Finds the httpserver component in a manifest and returns the details needed to create a service
+#[instrument(level = "debug", skip_all)]
 fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
     let components: Vec<&model::Component> = manifest
         .spec
@@ -649,6 +654,7 @@ fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
 }
 
 /// Deletes a service in the cluster.
+#[instrument(level = "info", skip(k8s_client))]
 async fn delete_service(k8s_client: KubeClient, namespace: &str, name: &str) -> Result<()> {
     debug!(namespace = namespace, name = name, "Deleting service");
     let api = Api::<Service>::namespaced(k8s_client.clone(), namespace);
@@ -671,6 +677,7 @@ async fn delete_service(k8s_client: KubeClient, namespace: &str, name: &str) -> 
     Ok(())
 }
 
+#[instrument(level = "info", skip(k8s_client))]
 async fn delete_services(k8s_client: KubeClient, namespace: &str) -> Result<()> {
     let api = Api::<Service>::namespaced(k8s_client.clone(), namespace);
     let services = api
