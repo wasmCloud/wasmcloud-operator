@@ -103,12 +103,24 @@ config:
 helm upgrade --install -f values.yaml nats-cluster nats/nats
 ```
 
-### Running WADM
+### Running Wadm
 
-WADM can be run as a standalone binary or as a container. The following
-command will start WADM as a Kubernetes deployment:
+You can deploy Wadm to your Kubernetes cluster with the Wadm Helm chart. First, clone the Wadm repo from GitHub:
 
+```shell
+git clone https://github.com/wasmCloud/wadm.git
+```
+
+In the cloned repo, find the chart at `wadm/charts/wadm`. For a minimal deployment, all you need in your `values.yaml` file is:
+
+```yaml
+wadm:
+  config:
+    nats:
+      server: "nats-cluster.default.svc.cluster.local:4222"
+```
 ```sh
+helm install wadm -f values.yaml ./
 ```
 
 ### Start the operator
