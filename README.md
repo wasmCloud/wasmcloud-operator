@@ -1,10 +1,10 @@
 # wasmcloud-operator
 
-An operator for managing a set of wasmCloud hosts running on Kubernetes and
-manage wasmCloud appliations using WADM.
+An operator for managing a set of [wasmCloud hosts](https://github.com/wasmCloud/wasmCloud/) running on Kubernetes and
+manage [wasmCloud applications using wadm](https://github.com/wasmcloud/wadm).
 The goal is to easily be able to run WasmCloud hosts on a Kubernetes cluster.
 
-## CusterConfig Custom Resource Definition (CRD)
+## WasmCloudHostConfig Custom Resource Definition (CRD)
 
 The WasmCloudHostConfig CRD describes the desired state of a set of wasmCloud
 hosts connected to the same lattice.
