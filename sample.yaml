@@ -13,7 +13,7 @@ spec:
   hostLabels:
     test: value
   # Which wasmCloud version to use
-  version: 1.0.0-rc.1
+  version: 1.0.0-rc.2
   # The name of a secret in the same namespace that provides the required secrets.
   secretName: cluster-secrets
   logLevel: INFO
@@ -22,19 +22,19 @@ spec:
   # This includes setting resource requirements for the nats and wasmCloud host
   # containers along with any additional pot template settings.
   #schedulingOptions:
-    # Enable the following to run the wasmCloud hosts as a DaemonSet
-    #daemonset: true
-    # Set the resource requirements for the nats and wasmCloud host containers.
-    #resources:
-    #  nats:
-    #    requests:
-    #      cpu: 100m
-    # wasmCloudHost:
-    #    requests:
-    #      cpu: 100m
-    # Any additional pod template settings to apply to the wasmCloud host pods.
-    # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
-    # Note that you *cannot* set the `containers` field here as it is managed by the controller.
-    #pod_template_additions:
-    #  nodeSelector:
-    #    kubernetes.io/os: linux
+  # Enable the following to run the wasmCloud hosts as a DaemonSet
+  #daemonset: true
+  # Set the resource requirements for the nats and wasmCloud host containers.
+  #resources:
+  #  nats:
+  #    requests:
+  #      cpu: 100m
+  # wasmCloudHost:
+  #    requests:
+  #      cpu: 100m
+  # Any additional pod template settings to apply to the wasmCloud host pods.
+  # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
+  # Note that you *cannot* set the `containers` field here as it is managed by the controller.
+  #pod_template_additions:
+  #  nodeSelector:
+  #    kubernetes.io/os: linux

@@ -2539,7 +2539,8 @@ dependencies = [
 [[package]]
 name = "provider-archive"
 version = "0.9.0"
-source = "git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2#f6e5f0e804d4a7eced93778b739bf58c30ad75e7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d917297b393db1e9c8362cd9809aaaa91dd60870b24aa1f139e52b9b191c25a"
 dependencies = [
  "async-compression",
  "data-encoding",
@@ -2548,7 +2549,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tar",
- "wascap 0.13.0 (git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2)",
+ "wascap",
 ]
 
 [[package]]
@@ -4045,9 +4046,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "wadm"
-version = "0.11.0-alpha.2"
+version = "0.11.0-alpha.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86a2fc81038e2d2a90c30a49237973224ee76ed0b11d0d714d027798ad5eb565"
+checksum = "8a31e7c622ddb533044d444bed6ac34a87d885e14a9f847563218cb2111c0512"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -4073,7 +4074,7 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "uuid",
- "wasmcloud-control-interface 1.0.0-alpha.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wasmcloud-control-interface",
 ]
 
 [[package]]
@@ -4115,26 +4116,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "wascap"
-version = "0.13.0"
-source = "git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2#f6e5f0e804d4a7eced93778b739bf58c30ad75e7"
-dependencies = [
- "data-encoding",
- "humantime",
- "nkeys",
- "nuid 0.4.1",
- "ring 0.17.5",
- "serde",
- "serde_json",
- "wasm-encoder 0.202.0",
- "wasm-gen",
- "wasmparser 0.202.0",
-]
-
-[[package]]
 name = "wash-lib"
-version = "0.20.0-alpha.1"
-source = "git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2#f6e5f0e804d4a7eced93778b739bf58c30ad75e7"
+version = "0.20.0-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecd215ea07875aa4fdc8fa3a65131d3085535e154ac7bd531826c46ddc4c934f"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -4174,10 +4159,10 @@ dependencies = [
  "url",
  "wadm",
  "walkdir",
- "wascap 0.13.0 (git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2)",
+ "wascap",
  "wasm-encoder 0.202.0",
  "wasmcloud-component-adapters",
- "wasmcloud-control-interface 1.0.0-alpha.3 (git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2)",
+ "wasmcloud-control-interface",
  "wasmcloud-core 0.5.0",
  "wasmparser 0.202.0",
  "wat",
@@ -4370,28 +4355,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wasmcloud-control-interface"
-version = "1.0.0-alpha.3"
-source = "git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2#f6e5f0e804d4a7eced93778b739bf58c30ad75e7"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-trait",
- "bytes",
- "cloudevents-sdk",
- "futures",
- "oci-distribution",
- "opentelemetry 0.21.0",
- "opentelemetry_sdk 0.21.2",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-opentelemetry 0.22.0",
- "wasmcloud-core 0.5.0",
-]
-
-[[package]]
 name = "wasmcloud-core"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4414,7 +4377,7 @@ dependencies = [
  "tracing",
  "ulid",
  "uuid",
- "wascap 0.13.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "wascap",
  "wrpc-transport 0.22.0",
  "wrpc-transport-nats 0.19.0",
 ]
@@ -4422,7 +4385,8 @@ dependencies = [
 [[package]]
 name = "wasmcloud-core"
 version = "0.5.0"
-source = "git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2#f6e5f0e804d4a7eced93778b739bf58c30ad75e7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a646a51b5c4410c6bd93aecbcc98f24921c88712de4549ab64617d88fb4acb88"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -4444,14 +4408,14 @@ dependencies = [
  "tracing",
  "ulid",
  "uuid",
- "wascap 0.13.0 (git+https://github.com/wasmcloud/wasmcloud.git?tag=wash-cli-v0.27.0-alpha.2)",
+ "wascap",
  "wrpc-transport 0.24.2",
  "wrpc-transport-nats 0.21.0",
 ]
 
 [[package]]
 name = "wasmcloud-operator"
-version = "0.2.0"
+version = "0.2.0-alpha.1"
 dependencies = [
  "anyhow",
  "async-nats",
