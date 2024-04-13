@@ -279,31 +279,12 @@ pub async fn create_application(
         Err(e) => return internal_error(anyhow!("Unable to list cosmonic host configs: {}", e)),
     };
 
-    let mut cfgs = cfgs.iter();
     // TODO(joonas): Remove this once we move to pulling NATS creds+secrets from lattice instead of hosts.
-    let mut lattice_id = String::new();
-    let nats_client = loop {
-        let Some(cfg) = cfgs.next() else {
-            return internal_error(anyhow!(
-                "unable to find Host Config to use for initializing nats client "
-            ));
+    let (nats_client, lattice_id) =
+        match get_lattice_connection(cfgs.into_iter(), state, namespace).await {
+            Ok(data) => data,
+            Err(resp) => return resp,
         };
-        let cluster_url = cfg.spec.nats_address.clone();
-        lattice_id = cfg.spec.lattice.clone();
-        let lattice_name = cfg.metadata.name.clone().unwrap();
-        let nst: NameNamespace = NameNamespace::new(lattice_name.clone(), namespace.clone());
-        match get_client(&cluster_url, state.nats_creds.clone(), nst).await {
-            Ok(c) => break Some(c),
-            Err(e) => {
-                error!("error connecting to nats: {}", e);
-                continue;
-            }
-        };
-    };
-
-    let Some(nats_client) = nats_client else {
-        return internal_error(anyhow!("unable to initialize nats client"));
-    };
 
     let model: serde_json::Value = match serde_json::from_slice(&body) {
         Ok(v) => v,
@@ -539,31 +520,12 @@ pub async fn get_application(
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
     };
 
-    let mut cfgs = cfgs.iter();
     // TODO(joonas): Remove this once we move to pulling NATS creds+secrets from lattice instead of hosts.
-    let mut lattice_id = String::new();
-    let nats_client = loop {
-        let Some(cfg) = cfgs.next() else {
-            return internal_error(anyhow!(
-                "unable to find Host Config to use for initializing nats client "
-            ));
+    let (nats_client, lattice_id) =
+        match get_lattice_connection(cfgs.into_iter(), state, namespace.clone()).await {
+            Ok(data) => data,
+            Err(resp) => return resp,
         };
-        let cluster_url = cfg.spec.nats_address.clone();
-        lattice_id = cfg.spec.lattice.clone();
-        let lattice_name = cfg.metadata.name.clone().unwrap();
-        let nst: NameNamespace = NameNamespace::new(lattice_name.clone(), namespace.clone());
-        match get_client(&cluster_url, state.nats_creds.clone(), nst).await {
-            Ok(c) => break Some(c),
-            Err(e) => {
-                error!("error connecting to nats: {}", e);
-                continue;
-            }
-        };
-    };
-
-    let Some(nats_client) = nats_client else {
-        return internal_error(anyhow!("unable to initialize nats client"));
-    };
 
     let get =
         match wash_lib::app::get_model_details(&nats_client, Some(lattice_id.clone()), &name, None)
@@ -662,31 +624,12 @@ pub async fn patch_application(
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
     };
 
-    let mut cfgs = cfgs.iter();
     // TODO(joonas): Remove this once we move to pulling NATS creds+secrets from lattice instead of hosts.
-    let mut lattice_id = String::new();
-    let nats_client = loop {
-        let Some(cfg) = cfgs.next() else {
-            return internal_error(anyhow!(
-                "unable to find Host Config to use for initializing nats client "
-            ));
+    let (nats_client, lattice_id) =
+        match get_lattice_connection(cfgs.into_iter(), state, namespace).await {
+            Ok(data) => data,
+            Err(resp) => return resp,
         };
-        let cluster_url = cfg.spec.nats_address.clone();
-        lattice_id = cfg.spec.lattice.clone();
-        let lattice_name = cfg.metadata.name.clone().unwrap();
-        let nst: NameNamespace = NameNamespace::new(lattice_name.clone(), namespace.clone());
-        match get_client(&cluster_url, state.nats_creds.clone(), nst).await {
-            Ok(c) => break Some(c),
-            Err(e) => {
-                error!("error connecting to nats: {}", e);
-                continue;
-            }
-        };
-    };
-
-    let Some(nats_client) = nats_client else {
-        return internal_error(anyhow!("unable to initialize nats client"));
-    };
 
     // Fist, check if the model exists.
     // TODO(joonas): we should likely fetch the version of the manifest that's running in Kubernetes
@@ -791,31 +734,12 @@ pub async fn delete_application(
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
     };
 
-    let mut cfgs = cfgs.iter();
     // TODO(joonas): Remove this once we move to pulling NATS creds+secrets from lattice instead of hosts.
-    let mut lattice_id = String::new();
-    let nats_client = loop {
-        let Some(cfg) = cfgs.next() else {
-            return internal_error(anyhow!(
-                "unable to find Host Config to use for initializing nats client "
-            ));
+    let (nats_client, lattice_id) =
+        match get_lattice_connection(cfgs.into_iter(), state, namespace).await {
+            Ok(data) => data,
+            Err(resp) => return resp,
         };
-        let cluster_url = cfg.spec.nats_address.clone();
-        lattice_id = cfg.spec.lattice.clone();
-        let lattice_name = cfg.metadata.name.clone().unwrap();
-        let nst: NameNamespace = NameNamespace::new(lattice_name.clone(), namespace.clone());
-        match get_client(&cluster_url, state.nats_creds.clone(), nst).await {
-            Ok(c) => break Some(c),
-            Err(e) => {
-                error!("error connecting to nats: {}", e);
-                continue;
-            }
-        };
-    };
-
-    let Some(nats_client) = nats_client else {
-        return internal_error(anyhow!("unable to initialize nats client"));
-    };
 
     // Fist, check if the model exists.
     // TODO(joonas): Replace this with wash_lib::app::get_model_status once
@@ -871,4 +795,33 @@ pub async fn delete_application(
             delete.message
         )),
     }
+}
+
+async fn get_lattice_connection(
+    cfgs: impl Iterator<Item = WasmCloudHostConfig>,
+    state: State,
+    namespace: String,
+) -> Result<(async_nats::Client, String), Response> {
+    let connection_data =
+        cfgs.map(|cfg| (cfg, namespace.clone()))
+            .filter_map(|(cfg, namespace)| {
+                let cluster_url = cfg.spec.nats_address;
+                let lattice_id = cfg.spec.lattice;
+                let lattice_name = cfg.metadata.name?;
+                let nst: NameNamespace = NameNamespace::new(lattice_name, namespace);
+                Some((cluster_url, nst, lattice_id))
+            });
+
+    for (cluster_url, ns, lattice_id) in connection_data {
+        match get_client(&cluster_url, state.nats_creds.clone(), ns).await {
+            Ok(c) => return Ok((c, lattice_id)),
+            Err(e) => {
+                error!(err = %e, %lattice_id, "error connecting to nats");
+                continue;
+            }
+        };
+    }
+
+    // If we get here, we couldn't get a NATS client, so return an error
+    Err(internal_error(anyhow!("unable to initialize nats client")))
 }

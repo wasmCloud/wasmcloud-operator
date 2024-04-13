@@ -1,7 +1,7 @@
-use crate::controller::{
-    common_labels, CLUSTER_CONFIG_FINALIZER, SERVICE_FINALIZER,
-    WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX, WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT,
-};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::net::SocketAddr;
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_nats::{
     jetstream,
@@ -22,9 +22,6 @@ use kube::{
     client::Client as KubeClient,
     Resource,
 };
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::net::SocketAddr;
-use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, warn};
@@ -35,6 +32,11 @@ use wadm::{
 };
 use wash_lib::app;
 use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
+
+use crate::controller::{
+    common_labels, CLUSTER_CONFIG_FINALIZER, SERVICE_FINALIZER,
+    WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX, WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT,
+};
 
 const CONSUMER_PREFIX: &str = "wasmcloud_operator_service";
 // This should probably be exposed by wadm somewhere
@@ -105,10 +107,10 @@ impl Watcher {
         tokio::spawn(async move {
             tokio::select! {
                 _ = watcher_dup.shutdown.cancelled() => {
-                    debug!("Service watcher shutting down for lattice {}", lattice_id);
+                    debug!(%lattice_id, "Service watcher shutting down for lattice");
                 }
                 _ = watcher_dup.watch_events(&watcher_dup.consumer) => {
-                    error!("Service watcher for lattice {} has stopped", lattice_id);
+                    error!(%lattice_id, "Service watcher for lattice has stopped");
                 }
             }
         });
@@ -126,7 +128,7 @@ impl Watcher {
                         .ack()
                         .await
                         .map_err(|e| {
-                            error!(error=%e, "Error acking message");
+                            error!(err=%e, "Error acking message");
                             e
                         })
                         .ok(),
@@ -134,7 +136,7 @@ impl Watcher {
                         .ack_with(AckKind::Nak(None))
                         .await
                         .map_err(|e| {
-                            error!(error=%e, "Error nacking message");
+                            error!(err=%e, "Error nacking message");
                             e
                         })
                         .ok(),
@@ -152,7 +154,7 @@ impl Watcher {
             Ok(evt) => evt,
             Err(e) => {
                 warn!(
-                    error=%e,
+                    err=%e,
                     event_type=%event.ty(),
                     "Error converting cloudevent to wadm event",
                 );
@@ -185,7 +187,7 @@ impl Watcher {
         let manifest = mp.manifest;
         if let Some(httpserver_service) = http_server_component(&manifest) {
             if let Ok(addr) = httpserver_service.address.parse::<SocketAddr>() {
-                debug!("Upserting service for manifest: {}", manifest.metadata.name);
+                debug!(manifest = %manifest.metadata.name, "Upserting service for manifest");
                 self.tx
                     .send(WatcherCommand::UpsertService(ServiceParams {
                         name: manifest.metadata.name.clone(),
@@ -239,23 +241,23 @@ impl ServiceWatcher {
                     WatcherCommand::UpsertService(params) => {
                         create_or_update_service(client.clone(), &params, None)
                             .await
-                            .map_err(|e| error!(error=%e, "Error creating/updating service"))
+                            .map_err(|e| error!(err=%e, "Error creating/updating service"))
                             .ok();
                     }
                     WatcherCommand::RemoveService { name, namespaces } => {
                         for namespace in namespaces {
                             delete_service(client.clone(), &namespace, name.as_str())
                                 .await
-                                .map_err(|e| error!(error=%e, namespace=namespace, "Error deleting service"))
+                                .map_err(|e| error!(err=%e, %namespace, "Error deleting service"))
                                 .ok();
                         }
                     }
                     WatcherCommand::RemoveServices { namespaces } => {
                         for namespace in namespaces {
                             delete_services(client.clone(), namespace.as_str())
-                                    .await
-                                    .map_err(|e| error!(error=%e, namespace=namespace, "Error deleting service"))
-                                    .ok();
+                                .await
+                                .map_err(|e| error!(err=%e, %namespace, "Error deleting service"))
+                                .ok();
                         }
                     }
                 }
@@ -291,10 +293,10 @@ impl ServiceWatcher {
                             // all
                             let _ = watcher.handle_manifest_published(ManifestPublished {
                                 manifest: model.manifest.unwrap(),
-                            }).map_err(|e| error!(error=%e, lattice_id=%lattice_id, app=app.name, "failed to trigger service reconciliation for app"));
+                            }).map_err(|e| error!(err = %e, %lattice_id, app = %app.name, "failed to trigger service reconciliation for app"));
                         }
                     }
-                    Err(e) => warn!(error=%e, "Unable to retrieve model"),
+                    Err(e) => warn!(err=%e, "Unable to retrieve model"),
                 };
             }
         };
@@ -404,9 +406,11 @@ pub async fn create_or_update_service(
             "app.kubernetes.io/name".to_string(),
             "wasmcloud".to_string(),
         );
-        host_labels.iter().for_each(|(k, v)| {
-            selector.insert(format_service_selector(k), v.clone());
-        })
+        selector.extend(
+            host_labels
+                .iter()
+                .map(|(k, v)| (format_service_selector(k), v.clone())),
+        );
     } else {
         create_endpoints = true;
     }
@@ -439,7 +443,7 @@ pub async fn create_or_update_service(
             svc.metadata.owner_references = Some(vec![owner_ref.clone()]);
         }
 
-        debug!(service =? svc, namespace=namespace, "Creating/updating service");
+        debug!(service =? svc, %namespace, "Creating/updating service");
 
         let svc = api
             .patch(
@@ -449,7 +453,7 @@ pub async fn create_or_update_service(
             )
             .await
             .map_err(|e| {
-                error!("Error creating/updating service: {}", e);
+                error!(err = %e, "Error creating/updating service");
                 e
             })?;
 
@@ -473,15 +477,19 @@ pub async fn create_or_update_service(
                             ..Default::default()
                         })
                         .await?;
-                    for pod in pods {
-                        if let Some(status) = pod.status {
-                            if status.phase == Some("Running".to_string()) {
-                                if let Some(pod_ips) = status.pod_ips {
-                                    ips.extend(pod_ips);
+                    let pod_ips = pods
+                        .into_iter()
+                        .filter_map(|pod| {
+                            pod.status.and_then(|status| {
+                                if status.phase == Some("Running".to_string()) {
+                                    status.pod_ips
+                                } else {
+                                    None
                                 }
-                            }
-                        }
-                    }
+                            })
+                        })
+                        .flatten();
+                    ips.extend(pod_ips);
                 }
             }
 
