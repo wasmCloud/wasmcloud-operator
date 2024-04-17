@@ -15,7 +15,7 @@ spec:
     spec:
       serviceAccountName: wasmcloud-operator
       containers:
-        - image: ghcr.io/wasmcloud/wasmcloud-operator:latest
+        - image: ghcr.io/wasmcloud/wasmcloud-operator:0.2.0
           imagePullPolicy: Always
           name: wasmcloud-operator
           ports:

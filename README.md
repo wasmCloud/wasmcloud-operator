@@ -105,13 +105,8 @@ helm upgrade --install -f values.yaml nats-cluster nats/nats
 
 ### Running Wadm
 
-You can deploy Wadm to your Kubernetes cluster with the Wadm Helm chart. First, clone the Wadm repo from GitHub:
-
-```shell
-git clone https://github.com/wasmCloud/wadm.git
-```
-
-In the cloned repo, find the chart at `wadm/charts/wadm`. For a minimal deployment, all you need in your `values.yaml` file is:
+You can run Wadm in your Kubernetes cluster using our Helm chart. For a minimal deployment using the
+NATS server deployed above, all you need in your `values.yaml` file is:
 
 ```yaml
 wadm:
@@ -119,8 +114,11 @@ wadm:
     nats:
       server: "nats-cluster.default.svc.cluster.local:4222"
 ```
+
+You can deploy Wadm using your values file and Helm:
+
 ```sh
-helm install wadm -f values.yaml ./
+helm install wadm -f values.yaml --version 0.2.0 oci://ghcr.io/wasmcloud/charts/wadm
 ```
 
 ### Start the operator
