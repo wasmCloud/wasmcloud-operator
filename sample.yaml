@@ -13,7 +13,7 @@ spec:
   hostLabels:
     test: value
   # Which wasmCloud version to use
-  version: 1.0.0-rc.2
+  version: "1.0.0"
   # The name of a secret in the same namespace that provides the required secrets.
   secretName: cluster-secrets
   logLevel: INFO
