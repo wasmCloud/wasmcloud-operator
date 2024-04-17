@@ -2538,9 +2538,9 @@ dependencies = [
 
 [[package]]
 name = "provider-archive"
-version = "0.9.0"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d917297b393db1e9c8362cd9809aaaa91dd60870b24aa1f139e52b9b191c25a"
+checksum = "d307420d84d6513146612e97d7ca34f54b34c60df9817020da496b885b0085f1"
 dependencies = [
  "async-compression",
  "data-encoding",
@@ -2549,7 +2549,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tar",
- "wascap",
+ "wascap 0.14.0",
 ]
 
 [[package]]
@@ -4046,9 +4046,9 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "wadm"
-version = "0.11.0-alpha.3"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a31e7c622ddb533044d444bed6ac34a87d885e14a9f847563218cb2111c0512"
+checksum = "62bd11670372017a613ba62dc4f46e4db75f635d1d6a0ec7cc4f43ab2fc78d97"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -4116,10 +4116,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "wash-lib"
-version = "0.20.0-alpha.2"
+name = "wascap"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ecd215ea07875aa4fdc8fa3a65131d3085535e154ac7bd531826c46ddc4c934f"
+checksum = "3f73a26e9c0c7ae48fda89cc409a169cbce0465e07f5842ee19cd53d909ce167"
+dependencies = [
+ "data-encoding",
+ "humantime",
+ "nkeys",
+ "nuid 0.4.1",
+ "ring 0.17.5",
+ "serde",
+ "serde_json",
+ "wasm-encoder 0.203.0",
+ "wasm-gen",
+ "wasmparser 0.202.0",
+]
+
+[[package]]
+name = "wash-lib"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "374b9bd251b9647479f81f64909c5094c011e553fcd2189a158f69773de00c8c"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -4159,18 +4177,18 @@ dependencies = [
  "url",
  "wadm",
  "walkdir",
- "wascap",
- "wasm-encoder 0.202.0",
+ "wascap 0.14.0",
+ "wasm-encoder 0.203.0",
  "wasmcloud-component-adapters",
  "wasmcloud-control-interface",
- "wasmcloud-core 0.5.0",
+ "wasmcloud-core",
  "wasmparser 0.202.0",
  "wat",
  "weld-codegen",
  "wit-bindgen-core",
  "wit-bindgen-go",
  "wit-component",
- "wit-parser 0.202.0",
+ "wit-parser",
 ]
 
 [[package]]
@@ -4273,6 +4291,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wasm-encoder"
+version = "0.203.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e3b46a0d9d9143d57aa926c42e2af284b5cb8f0c7b71079afc7a6fca42db50"
+dependencies = [
+ "leb128",
+]
+
+[[package]]
 name = "wasm-gen"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4333,9 +4360,9 @@ dependencies = [
 
 [[package]]
 name = "wasmcloud-control-interface"
-version = "1.0.0-alpha.3"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc87e84c68d31d65d4070cf70548f5d27e2c9c75d2768ea52ce60416c048e9a6"
+checksum = "fa9ce0245be791548d153536d4a849f7db9abc9340657bae00250e8a0f7f6bbc"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -4351,35 +4378,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-opentelemetry 0.22.0",
- "wasmcloud-core 0.4.0",
-]
-
-[[package]]
-name = "wasmcloud-core"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9384bec7161ea7763f6665c49b9282323065e3edd0247cca9f679180bd14d86"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-trait",
- "bytes",
- "futures",
- "hex",
- "nkeys",
- "once_cell",
- "rustls 0.23.4",
- "serde",
- "serde_bytes",
- "sha2",
- "tokio",
- "tower",
- "tracing",
- "ulid",
- "uuid",
- "wascap",
- "wrpc-transport 0.22.0",
- "wrpc-transport-nats 0.19.0",
+ "wasmcloud-core",
 ]
 
 [[package]]
@@ -4408,9 +4407,9 @@ dependencies = [
  "tracing",
  "ulid",
  "uuid",
- "wascap",
- "wrpc-transport 0.24.2",
- "wrpc-transport-nats 0.21.0",
+ "wascap 0.13.0",
+ "wrpc-transport",
+ "wrpc-transport-nats",
 ]
 
 [[package]]
@@ -4783,7 +4782,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b67e11c950041849a10828c7600ea62a4077c01e8af72e8593253575428f91b"
 dependencies = [
  "anyhow",
- "wit-parser 0.202.0",
+ "wit-parser",
 ]
 
 [[package]]
@@ -4814,21 +4813,7 @@ dependencies = [
  "wasm-encoder 0.202.0",
  "wasm-metadata",
  "wasmparser 0.202.0",
- "wit-parser 0.202.0",
-]
-
-[[package]]
-name = "wit-parser"
-version = "0.201.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "196d3ecfc4b759a8573bf86a9b3f8996b304b3732e4c7de81655f875f6efdca6"
-dependencies = [
- "anyhow",
- "id-arena",
- "indexmap 2.0.2",
- "log",
- "semver",
- "unicode-xid",
+ "wit-parser",
 ]
 
 [[package]]
@@ -4851,25 +4836,6 @@ dependencies = [
 
 [[package]]
 name = "wrpc-transport"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b551cf90e43a1a331ec13af1ad244c9605956fd2c3d535ff857f5978ae963518"
-dependencies = [
- "anyhow",
- "async-nats",
- "async-trait",
- "bytes",
- "futures",
- "leb128",
- "tokio",
- "tokio-stream",
- "tower",
- "tracing",
- "wrpc-types 0.5.0",
-]
-
-[[package]]
-name = "wrpc-transport"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2e2c6aa7dae01766d47ad89bf4450b5ffa7761aab9a920f26d1845c932617a7"
@@ -4884,23 +4850,7 @@ dependencies = [
  "tokio-stream",
  "tower",
  "tracing",
- "wrpc-types 0.6.0",
-]
-
-[[package]]
-name = "wrpc-transport-nats"
-version = "0.19.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0d7401a0771e00936b57519e5c1627a174ae05d979a5f8a961e264f0e6f99f1"
-dependencies = [
- "anyhow",
- "async-nats",
- "bytes",
- "futures",
- "tokio",
- "tower",
- "tracing",
- "wrpc-transport 0.22.0",
+ "wrpc-types",
 ]
 
 [[package]]
@@ -4916,18 +4866,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
- "wrpc-transport 0.24.2",
-]
-
-[[package]]
-name = "wrpc-types"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "052dd3b6e5a936407695801656660badc5d0ddeaff482ac266669bfd47e6457e"
-dependencies = [
- "anyhow",
- "tracing",
- "wit-parser 0.201.0",
+ "wrpc-transport",
 ]
 
 [[package]]
@@ -4938,7 +4877,7 @@ checksum = "0b5304f4c3000b643bb56d405c5e29efd940f529b898288c65cd3861e24cca71"
 dependencies = [
  "anyhow",
  "tracing",
- "wit-parser 0.202.0",
+ "wit-parser",
 ]
 
 [[package]]
