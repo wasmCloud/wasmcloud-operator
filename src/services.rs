@@ -15,7 +15,7 @@ use async_nats::{
 use cloudevents::{AttributesReader, Event as CloudEvent};
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::{Pod, Service, ServicePort, ServiceSpec};
-use k8s_openapi::api::discovery::v1::{Endpoint, EndpointPort, EndpointSlice};
+use k8s_openapi::api::discovery::v1::{Endpoint, EndpointConditions, EndpointPort, EndpointSlice};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::OwnerReference;
 use kube::{
     api::{Api, DeleteParams, ListParams, Patch, PatchParams},
@@ -522,6 +522,11 @@ pub async fn create_or_update_service(
                         .filter_map(|ip| {
                             ip.ip.as_ref().map(|i| Endpoint {
                                 addresses: vec![i.clone()],
+                                conditions: Some(EndpointConditions {
+                                    ready: Some(true),
+                                    serving: Some(true),
+                                    terminating: None,
+                                }),
                                 hostname: None,
                                 target_ref: None,
                                 ..Default::default()
