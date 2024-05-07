@@ -54,14 +54,30 @@ pub struct WasmCloudHostConfigSpec {
     /// The Jetstream domain to use for the NATS sidecar. Defaults to "default".
     #[serde(default = "default_jetstream_domain")]
     pub jetstream_domain: String,
+    /// Allow the host to deploy using the latest tag on OCI components or providers
+    #[serde(default)]
+    pub allow_latest: bool,
+    /// Allow the host to pull artifacts from OCI registries insecurely
+    #[serde(default)]
+    pub allowed_insecure: Option<Vec<String>>,
     /// The log level to use for the host. Defaults to "INFO".
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    pub policy_service: Option<PolicyService>,
     /// Kubernetes scheduling options for the wasmCloud host.
     pub scheduling_options: Option<KubernetesSchedulingOptions>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PolicyService {
+    pub topic: Option<String>,
+    pub timeout_ms: Option<u32>,
+    pub changes_topic: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct KubernetesSchedulingOptions {
     /// Run hosts as a DaemonSet instead of a Deployment.
     #[serde(default)]

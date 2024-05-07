@@ -4,7 +4,7 @@ metadata:
   name: my-wasmcloud-cluster
   namespace: default
 spec:
-  hostReplicas: 2
+  hostReplicas: 1
   issuers:
     - CDKF6OKPOBQKAX57UOXO7SCHURTOZWKWIVPC2HFJTGFXY5VJX44ECEHH
   # The lattice to connect the hosts to
@@ -18,23 +18,39 @@ spec:
   secretName: cluster-secrets
   logLevel: INFO
   natsAddress: nats://nats-cluster.default.svc.cluster.local
+  ################################################
+  # Additional options that can be set for hosts:
+  ################################################
+  # allowLatest: true
+  # allowedInsecure:
+  #   - "localhost:5001"
+  #   - "kind-registry:5000"
+  # Policy service configuration
+  # policyService:
+  #   topic: "foo"
+  #   changesTopic: "bar"
+  #   timeoutMs: 5000
   # Additional options to control how the underlying wasmCloud hosts are scheduled in Kubernetes.
   # This includes setting resource requirements for the nats and wasmCloud host
   # containers along with any additional pot template settings.
-  #schedulingOptions:
+  # schedulingOptions:
   # Enable the following to run the wasmCloud hosts as a DaemonSet
-  #daemonset: true
+  # daemonset: true
   # Set the resource requirements for the nats and wasmCloud host containers.
-  #resources:
-  #  nats:
-  #    requests:
-  #      cpu: 100m
-  # wasmCloudHost:
-  #    requests:
-  #      cpu: 100m
+  # resources:
+  #   nats:
+  #     requests:
+  #       cpu: 100m
+  #  wasmCloudHost:
+  #     requests:
+  #       cpu: 100m
   # Any additional pod template settings to apply to the wasmCloud host pods.
   # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
   # Note that you *cannot* set the `containers` field here as it is managed by the controller.
-  #pod_template_additions:
+  # podTemplateAdditions:
+  #   spec:
+  #     env:
+  #       - name: HOST_IP
+  #         value: spec.hostIP
   #  nodeSelector:
   #    kubernetes.io/os: linux
