@@ -342,6 +342,48 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         });
     }
 
+    if config.spec.allow_latest {
+        wasmcloud_env.push(EnvVar {
+            name: "WASMCLOUD_OCI_ALLOW_LATEST".to_string(),
+            value: Some("true".to_string()),
+            ..Default::default()
+        });
+    }
+
+    if let Some(values) = &config.spec.allowed_insecure {
+        wasmcloud_env.push(EnvVar {
+            name: "WASMCLOUD_OCI_ALLOWED_INSECURE".to_string(),
+            value: Some(values.join(",")),
+            ..Default::default()
+        });
+    }
+
+    if let Some(policy) = &config.spec.policy_service {
+        if let Some(subject) = &policy.topic {
+            wasmcloud_env.push(EnvVar {
+                name: "WASMCLOUD_POLICY_TOPIC".to_string(),
+                value: Some(subject.clone()),
+                ..Default::default()
+            });
+        }
+
+        if let Some(changes) = &policy.changes_topic {
+            wasmcloud_env.push(EnvVar {
+                name: "WASMCLOUD_POLICY_CHANGES_TOPIC".to_string(),
+                value: Some(changes.clone()),
+                ..Default::default()
+            });
+        }
+
+        if let Some(timeout) = &policy.timeout_ms {
+            wasmcloud_env.push(EnvVar {
+                name: "WASMCLOUD_POLICY_TIMEOUT".to_string(),
+                value: Some(timeout.to_string()),
+                ..Default::default()
+            });
+        }
+    }
+
     if let Some(labels) = &config.spec.host_labels {
         for (k, v) in labels.iter() {
             wasmcloud_env.push(EnvVar {
