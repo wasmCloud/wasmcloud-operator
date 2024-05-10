@@ -28,7 +28,7 @@ spec:
   hostLabels:
     some-label: value
   # Which wasmCloud version to use
-  version: 0.82.0
+  version: 1.0.2
   # The name of a secret in the same namespace that provides the required secrets.
   secretName: cluster-secrets
   # Enable the following to run the wasmCloud hosts as a DaemonSet
@@ -45,12 +45,13 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: my-wasmcloud-cluster
-data:
+stringData:
   # You can generate this with wash:
   # `wash keys gen cluster`
   WASMCLOUD_CLUSTER_SEED: <seed>
+#data:
   # Only required if using a NATS creds file
-  # nats.creds: <base64 encoded creds file>
+  # nats.creds: <creds file>
 ```
 
 The operator will fail to provision the wasmCloud Deployment if any of these
@@ -100,6 +101,7 @@ config:
 ```
 
 ```sh
+helm repo add nats https://nats-io.github.io/k8s/helm/charts/
 helm upgrade --install -f values.yaml nats-cluster nats/nats
 ```
 
@@ -118,13 +120,13 @@ wadm:
 You can deploy Wadm using your values file and Helm:
 
 ```sh
-helm install wadm -f values.yaml --version 0.2.0 oci://ghcr.io/wasmcloud/charts/wadm
+helm install wadm -f wadm-values.yaml --version 0.2.0 oci://ghcr.io/wasmcloud/charts/wadm
 ```
 
 ### Start the operator
 
 ```sh
-kubectl kustomize build deploy/local | kubectl apply -f -
+kubectl kustomize deploy/base | kubectl apply -f -
 ```
 
 ## Automatically Syncing Kubernetes Services
