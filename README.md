@@ -27,10 +27,12 @@ spec:
   # Additional labels to apply to the host other than the defaults set in the operator
   hostLabels:
     some-label: value
+  # The address to connect to nats 
+  natsAddress: nats://nats-cluster.default.svc.cluster.local
   # Which wasmCloud version to use
   version: 1.0.2
   # The name of a secret in the same namespace that provides the required secrets.
-  secretName: cluster-secrets
+  secretName: my-wasmcloud-cluster
   # Enable the following to run the wasmCloud hosts as a DaemonSet
   #daemonset: true
   # The name of the image pull secret to use with wasmCloud hosts so that they
