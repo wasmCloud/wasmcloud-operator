@@ -17,7 +17,7 @@ spec:
   # The name of a secret in the same namespace that provides the required secrets.
   secretName: cluster-secrets
   logLevel: INFO
-  natsAddress: nats://nats-cluster.default.svc.cluster.local
+  natsAddress: nats://nats-cluster.default.svc.cluster.local:7422
   ################################################
   # Additional options that can be set for hosts:
   ################################################
@@ -27,9 +27,9 @@ spec:
   #   - "kind-registry:5000"
   # Policy service configuration
   # policyService:
-  #   topic: "wasmcloud.policy"
-  #   #changesTopic: "bar"
-  #   timeoutMs: 10000
+  #  topic: "wasmcloud.policy"
+  #  changesTopic: "bar"
+  #  timeoutMs: 10000
   # Additional options to control how the underlying wasmCloud hosts are scheduled in Kubernetes.
   # This includes setting resource requirements for the nats and wasmCloud host
   # containers along with any additional pot template settings.

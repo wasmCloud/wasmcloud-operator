@@ -18,7 +18,7 @@ fi
 # https://github.com/kubernetes-sigs/kind/issues/2875
 # https://github.com/containerd/containerd/blob/main/docs/cri/config.md#registry-configuration
 # See: https://github.com/containerd/containerd/blob/main/docs/hosts.md
-cat <<EOF | kind create cluster --image kindest/node:v1.29.2 --config=-
+cat <<EOF | kind create cluster --image kindest/node:v1.29.4 --config=-
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
