@@ -835,7 +835,7 @@ jetstream {
 leafnodes {
   remotes: [
     {
-      url: "{{cluster_url}}:7422"
+      url: "{{cluster_url}}"
       {{#if use_credentials}}
       credentials: "/nats/nats.creds"
       {{/if}}
