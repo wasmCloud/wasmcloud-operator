@@ -2,7 +2,7 @@ use k8s_openapi::api::core::v1::{PodSpec, ResourceRequirements};
 use kube::CustomResource;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[cfg_attr(test, derive(Default))]
@@ -26,7 +26,7 @@ pub struct WasmCloudHostConfigSpec {
     /// The lattice to use for these hosts.
     pub lattice: String,
     /// An optional set of labels to apply to these hosts.
-    pub host_labels: Option<HashMap<String, String>>,
+    pub host_labels: Option<BTreeMap<String, String>>,
     /// The version of the wasmCloud host to deploy.
     pub version: String,
     /// The image to use for the wasmCloud host.
@@ -51,6 +51,12 @@ pub struct WasmCloudHostConfigSpec {
     /// The address of the NATS server to connect to. Defaults to "nats://nats.default.svc.cluster.local".
     #[serde(default = "default_nats_address")]
     pub nats_address: String,
+    /// The port of the NATS server to connect to. Defaults to 4222.
+    #[serde(default = "default_nats_port")]
+    pub nats_client_port: u16,
+    /// The port of the NATS server to connect to for leaf node connections. Defaults to 7422.
+    #[serde(default = "default_nats_leafnode_port")]
+    pub nats_leafnode_port: u16,
     /// The Jetstream domain to use for the NATS sidecar. Defaults to "default".
     #[serde(default = "default_jetstream_domain")]
     pub jetstream_domain: String,
@@ -126,6 +132,14 @@ fn default_leaf_node_domain() -> String {
 
 fn default_log_level() -> String {
     "INFO".to_string()
+}
+
+fn default_nats_port() -> u16 {
+    4222
+}
+
+fn default_nats_leafnode_port() -> u16 {
+    7422
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
