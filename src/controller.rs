@@ -165,6 +165,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     let nc = s.nats_creds.map(SecretString::new);
     let apps = crate::resources::application::list_apps(
         &cfg.spec.nats_address,
+        &cfg.spec.nats_client_port,
         nc.as_ref(),
         cfg.spec.lattice.clone(),
     )
@@ -202,6 +203,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     // Start the watcher so that services are automatically created in the cluster.
     let nats_client = get_client(
         &cfg.spec.nats_address,
+        &cfg.spec.nats_client_port,
         ctx.nats_creds.clone(),
         NameNamespace::new(name.clone(), ns.clone()),
     )
@@ -835,7 +837,7 @@ jetstream {
 leafnodes {
   remotes: [
     {
-      url: "{{cluster_url}}"
+      url: "{{cluster_url}}:{{leafnode_port}}"
       {{#if use_credentials}}
       credentials: "/nats/nats.creds"
       {{/if}}
@@ -844,7 +846,7 @@ leafnodes {
 }
 "#;
     let tpl = Handlebars::new();
-    let rendered = tpl.render_template(template, &json!({"jetstream_domain": config.spec.leaf_node_domain, "cluster_url": config.spec.nats_address, "use_credentials": use_nats_creds}))?;
+    let rendered = tpl.render_template(template, &json!({"jetstream_domain": config.spec.leaf_node_domain, "cluster_url": config.spec.nats_address, "leafnode_port": config.spec.nats_leafnode_port,"use_credentials": use_nats_creds}))?;
     let mut contents = BTreeMap::new();
     contents.insert("nats.conf".to_string(), rendered);
     let cm = ConfigMap {

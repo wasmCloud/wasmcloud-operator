@@ -386,7 +386,14 @@ pub async fn list_all_applications(
         let secret = map.get(&nst);
         // Prevent listing applications within a given lattice more than once
         if !lattices.contains(&lattice_id) {
-            let result = match list_apps(&cfg.spec.nats_address, secret, lattice_id.clone()).await {
+            let result = match list_apps(
+                &cfg.spec.nats_address,
+                &cfg.spec.nats_client_port,
+                secret,
+                lattice_id.clone(),
+            )
+            .await
+            {
                 Ok(apps) => apps,
                 Err(e) => return internal_error(anyhow!("unable to list applications: {}", e)),
             };
@@ -440,7 +447,14 @@ pub async fn list_applications(
         let secret = map.get(&nst);
         // This is to check that we don't list a lattice more than once
         if !lattices.contains(&lattice_id) {
-            let result = match list_apps(&cfg.spec.nats_address, secret, lattice_id.clone()).await {
+            let result = match list_apps(
+                &cfg.spec.nats_address,
+                &cfg.spec.nats_client_port,
+                secret,
+                lattice_id.clone(),
+            )
+            .await
+            {
                 Ok(apps) => apps,
                 Err(e) => return internal_error(anyhow!("unable to list applications: {}", e)),
             };
@@ -466,16 +480,18 @@ pub async fn list_applications(
 
 pub async fn list_apps(
     cluster_url: &str,
+    port: &u16,
     creds: Option<&SecretString>,
     lattice_id: String,
 ) -> Result<Vec<ModelSummary>, Error> {
+    let addr = format!("{}:{}", cluster_url, port);
     let client = match creds {
         Some(creds) => {
             ConnectOptions::with_credentials(creds.expose_secret())?
-                .connect(cluster_url)
+                .connect(addr)
                 .await?
         }
-        None => ConnectOptions::new().connect(cluster_url).await?,
+        None => ConnectOptions::new().connect(addr).await?,
     };
     let models = wash_lib::app::get_models(&client, Some(lattice_id)).await?;
 
@@ -484,19 +500,21 @@ pub async fn list_apps(
 
 pub async fn get_client(
     cluster_url: &str,
+    port: &u16,
     nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
     namespace: NameNamespace,
 ) -> Result<async_nats::Client, async_nats::ConnectError> {
+    let addr = format!("{}:{}", cluster_url, port);
     let creds = nats_creds.read().await;
     match creds.get(&namespace) {
         Some(creds) => {
             let creds = creds.expose_secret();
             ConnectOptions::with_credentials(creds)
                 .expect("unable to create nats client")
-                .connect(cluster_url)
+                .connect(addr)
                 .await
         }
-        None => ConnectOptions::new().connect(cluster_url).await,
+        None => ConnectOptions::new().connect(addr).await,
     }
 }
 
@@ -809,11 +827,12 @@ async fn get_lattice_connection(
                 let lattice_id = cfg.spec.lattice;
                 let lattice_name = cfg.metadata.name?;
                 let nst: NameNamespace = NameNamespace::new(lattice_name, namespace);
-                Some((cluster_url, nst, lattice_id))
+                let port = cfg.spec.nats_client_port;
+                Some((cluster_url, nst, lattice_id, port))
             });
 
-    for (cluster_url, ns, lattice_id) in connection_data {
-        match get_client(&cluster_url, state.nats_creds.clone(), ns).await {
+    for (cluster_url, ns, lattice_id, port) in connection_data {
+        match get_client(&cluster_url, &port, state.nats_creds.clone(), ns).await {
             Ok(c) => return Ok((c, lattice_id)),
             Err(e) => {
                 error!(err = %e, %lattice_id, "error connecting to nats");
