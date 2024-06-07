@@ -25,12 +25,9 @@ use kube::{
 use tokio::sync::{mpsc, RwLock};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, warn};
-use wadm::{
-    events::{Event, ManifestPublished, ManifestUnpublished},
-    model::{self, Manifest, Trait, TraitProperty},
-    server::{GetResult, ModelSummary},
-};
-use wash_lib::app;
+use wadm::events::{Event, ManifestPublished, ManifestUnpublished};
+use wadm_client::Client as WadmClient;
+use wadm_types::{api::ModelSummary, Component, Manifest, Properties, Trait, TraitProperty};
 use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
 
 use crate::controller::{
@@ -275,26 +272,20 @@ impl ServiceWatcher {
     /// This intended to be called by the controller whenever it reconciles state.
     pub async fn reconcile_services(&self, apps: Vec<ModelSummary>, lattice_id: String) {
         if let Some(watcher) = self.watchers.read().await.get(lattice_id.as_str()) {
+            let wadm_client =
+                WadmClient::from_nats_client(&lattice_id, None, watcher.nats_client.clone());
             for app in apps {
                 if app.deployed_version.is_none() {
                     continue;
                 }
-                match app::get_model_details(
-                    &watcher.nats_client,
-                    Some(lattice_id.clone()),
-                    app.name.as_str(),
-                    app.deployed_version,
-                )
-                .await
+                match wadm_client
+                    .get_manifest(app.name.as_str(), app.deployed_version.as_deref())
+                    .await
                 {
-                    Ok(model) => {
-                        if model.result == GetResult::Success {
-                            // TODO handle this or decide on whether or not to return a result at
-                            // all
-                            let _ = watcher.handle_manifest_published(ManifestPublished {
-                                manifest: model.manifest.unwrap(),
+                    Ok(manifest) => {
+                        let _ = watcher.handle_manifest_published(ManifestPublished {
+                                manifest,
                             }).map_err(|e| error!(err = %e, %lattice_id, app = %app.name, "failed to trigger service reconciliation for app"));
-                        }
                     }
                     Err(e) => warn!(err=%e, "Unable to retrieve model"),
                 };
@@ -570,14 +561,12 @@ pub struct HttpServerComponent {
 
 /// Finds the httpserver component in a manifest and returns the details needed to create a service
 fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
-    let components: Vec<&model::Component> = manifest
-        .spec
-        .components
-        .iter()
+    let components: Vec<&Component> = manifest
+        .components()
         // filter just for the wasmCloud httpserver for now. This should actually just filter for
         // the http capability
         .filter(|c| {
-            if let wadm::model::Properties::Capability { properties } = &c.properties {
+            if let Properties::Capability { properties } = &c.properties {
                 if properties
                     .image
                     .starts_with("ghcr.io/wasmcloud/http-server")

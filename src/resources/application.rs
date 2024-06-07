@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::{anyhow, Error};
-use async_nats::ConnectOptions;
+use async_nats::{Client as NatsClient, ConnectError, ConnectOptions};
 use axum::{
     body::Bytes,
     extract::{Path, State as AxumState},
@@ -12,7 +12,7 @@ use axum::{
 };
 use kube::{
     api::{Api, ListParams},
-    client::Client,
+    client::Client as KubeClient,
     core::{ListMeta, ObjectMeta},
 };
 use secrecy::{ExposeSecret, SecretString};
@@ -21,12 +21,12 @@ use serde_json::json;
 use tokio::sync::RwLock;
 use tracing::error;
 use uuid::Uuid;
-use wadm::{
-    model::Manifest,
-    server::{
-        DeleteResult, DeployResult, GetResult, ModelSummary, PutResult, StatusResult, StatusType,
-    },
+use wadm_client::{error::ClientError, Client as WadmClient};
+use wadm_types::{
+    api::{ModelSummary, StatusType},
+    Manifest,
 };
+
 use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
 
 use crate::{
@@ -269,11 +269,11 @@ pub async fn create_application(
     AxumState(state): AxumState<State>,
     body: Bytes,
 ) -> impl IntoResponse {
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
-    let configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &namespace);
+    let configs: Api<WasmCloudHostConfig> = Api::namespaced(kube_client, &namespace);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("Unable to list cosmonic host configs: {}", e)),
@@ -286,74 +286,20 @@ pub async fn create_application(
             Err(resp) => return resp,
         };
 
-    let model: serde_json::Value = match serde_json::from_slice(&body) {
+    let wadm_client = WadmClient::from_nats_client(&lattice_id, None, nats_client);
+
+    let manifest: Manifest = match serde_json::from_slice(&body) {
         Ok(v) => v,
         Err(e) => return internal_error(anyhow!("unable to decode the patch: {}", e)),
     };
 
-    let put =
-        match wash_lib::app::put_model(&nats_client, Some(lattice_id.clone()), &model.to_string())
-            .await
-        {
-            Ok(res) => res,
+    let (application_name, _application_version) =
+        match wadm_client.put_and_deploy_manifest(manifest).await {
+            Ok(application_bits) => application_bits,
             Err(e) => return internal_error(anyhow!("could not deploy app: {}", e)),
         };
 
-    let model_name = match put.result {
-        PutResult::Created | PutResult::NewVersion => put.name,
-        _ => {
-            // TODO(joonas): Add handling for the case where the model version
-            // might already exist (from prior deploy or otherwise).
-            return internal_error(anyhow!(
-                "unexpected response from wadm: result={:?}, message={}",
-                put.result,
-                put.message
-            ));
-        }
-    };
-
-    let deploy = match wash_lib::app::deploy_model(
-        &nats_client,
-        Some(lattice_id.clone()),
-        &model_name,
-        Some(put.current_version.clone()),
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => return internal_error(anyhow!("could not deploy app: {}", e)),
-    };
-
-    if deploy.result != DeployResult::Acknowledged {
-        return internal_error(anyhow!(
-            "unexpected response from wadm: result={:?}, message={}",
-            deploy.result,
-            deploy.message
-        ));
-    }
-
-    // Get model from WADM for displaying in Kubernetes
-    let get = match wash_lib::app::get_model_details(
-        &nats_client,
-        Some(lattice_id),
-        &model_name,
-        Some(put.current_version),
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => return internal_error(anyhow!("error getting deployed app: {}", e)),
-    };
-
-    match get.result {
-        GetResult::Success => Json(Application::new(model_name)).into_response(),
-        // Either we received an error or could not find the deployed application, so return an error:
-        _ => internal_error(anyhow!(
-            "unexpected response from wadm: result={:?}, message={}",
-            get.result,
-            get.message
-        )),
-    }
+    Json(Application::new(application_name)).into_response()
 }
 
 #[utoipa::path(get, path = "/apis/core.oam.dev/v1beta1/applications")]
@@ -364,12 +310,12 @@ pub async fn list_all_applications(
     // TODO(joonas): Use lattices (or perhaps Controller specific/special creds) for instanciating NATS client.
     // TODO(joonas): Add watch support to stop Argo from spamming this endpoint every second.
 
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
 
-    let configs: Api<WasmCloudHostConfig> = Api::all(client);
+    let configs: Api<WasmCloudHostConfig> = Api::all(kube_client);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("Unable to list cosmonic host configs: {}", e)),
@@ -427,11 +373,11 @@ pub async fn list_applications(
     Path(namespace): Path<String>,
     AxumState(state): AxumState<State>,
 ) -> impl IntoResponse {
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
-    let configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &namespace);
+    let configs: Api<WasmCloudHostConfig> = Api::namespaced(kube_client, &namespace);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("Unable to list cosmonic host configs: {}", e)),
@@ -485,7 +431,7 @@ pub async fn list_apps(
     lattice_id: String,
 ) -> Result<Vec<ModelSummary>, Error> {
     let addr = format!("{}:{}", cluster_url, port);
-    let client = match creds {
+    let nats_client = match creds {
         Some(creds) => {
             ConnectOptions::with_credentials(creds.expose_secret())?
                 .connect(addr)
@@ -493,17 +439,16 @@ pub async fn list_apps(
         }
         None => ConnectOptions::new().connect(addr).await?,
     };
-    let models = wash_lib::app::get_models(&client, Some(lattice_id)).await?;
-
-    Ok(models)
+    let wadm_client = WadmClient::from_nats_client(&lattice_id, None, nats_client);
+    Ok(wadm_client.list_manifests().await?)
 }
 
-pub async fn get_client(
+pub async fn get_nats_client(
     cluster_url: &str,
     port: &u16,
     nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
     namespace: NameNamespace,
-) -> Result<async_nats::Client, async_nats::ConnectError> {
+) -> Result<NatsClient, ConnectError> {
     let addr = format!("{}:{}", cluster_url, port);
     let creds = nats_creds.read().await;
     match creds.get(&namespace) {
@@ -527,12 +472,12 @@ pub async fn get_application(
     Path((namespace, name)): Path<(String, String)>,
     AxumState(state): AxumState<State>,
 ) -> impl IntoResponse {
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
 
-    let configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &namespace);
+    let configs: Api<WasmCloudHostConfig> = Api::namespaced(kube_client, &namespace);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
@@ -544,83 +489,52 @@ pub async fn get_application(
             Ok(data) => data,
             Err(resp) => return resp,
         };
+    let wadm_client = WadmClient::from_nats_client(&lattice_id, None, nats_client);
 
-    let get =
-        match wash_lib::app::get_model_details(&nats_client, Some(lattice_id.clone()), &name, None)
-            .await
-        {
-            Ok(res) => res,
-            Err(e) => {
-                return internal_error(anyhow!("unable to request app from wadm: {}", e));
+    let manifest = match wadm_client.get_manifest(&name, None).await {
+        Ok(m) => m,
+        Err(e) => match e {
+            ClientError::NotFound(_) => {
+                return not_found_error(anyhow!("applications \"{}\" not found", name))
             }
-        };
-
-    let status = match wash_lib::app::get_model_status(
-        &nats_client,
-        Some(lattice_id.clone()),
-        &name,
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => {
-            return internal_error(anyhow!("unable to request app status from wadm: {}", e));
-        }
+            _ => return internal_error(anyhow!("unable to request app from wadm: {}", e)),
+        },
+    };
+    let status = match wadm_client.get_manifest_status(&name).await {
+        Ok(s) => s,
+        Err(_) => todo!(),
     };
 
-    match status.result {
-        StatusResult::Ok => {}
-        StatusResult::NotFound => {
-            return not_found_error(anyhow!("applications \"{}\" not found", name));
-        }
-        StatusResult::Error => {
-            return internal_error(anyhow!(
-                "unexpected response from wadm: result={:?}, message={}",
-                status.result,
-                status.message
-            ));
-        }
-    };
-
-    if get.result == GetResult::Success {
-        if let Some(manifest) = get.manifest {
-            let response = match accept.into() {
-                As::Table => Json(ApplicationTable::from(vec![manifest])).into_response(),
-                As::NotSpecified => {
-                    // TODO(joonas): This is a terrible hack, but for now it's what we need to do to satisfy Argo/Kubernetes since WADM doesn't support this metadata.
-                    let mut manifest_value = serde_json::to_value(&manifest).unwrap();
-                    // TODO(joonas): We should add lattice id to this as well, but we need it in every place where the application is listed.
-                    let ns = format!("{}/{}", &name, &manifest.version());
-                    let uid = Uuid::new_v5(&Uuid::NAMESPACE_OID, ns.as_bytes());
-                    manifest_value["metadata"]["uid"] = json!(uid.to_string());
-                    manifest_value["metadata"]["resourceVersion"] = json!(uid.to_string());
-                    manifest_value["metadata"]["namespace"] = json!(namespace);
-                    manifest_value["metadata"]["labels"] = json!({
-                        "app.kubernetes.io/instance": &name
-                    });
-                    // TODO(joonas): refactor status and the metadata inputs into a struct we could just serialize
-                    // The custom health check we provide for Argo will handle the case where status is missing, so this is fine for now.
-                    if let Some(status) = status.status {
-                        let phase = match status.info.status_type {
-                            StatusType::Undeployed => "Undeployed",
-                            StatusType::Reconciling => "Reconciling",
-                            StatusType::Deployed => "Deployed",
-                            StatusType::Failed => "Failed",
-                        };
-                        manifest_value["status"] = json!({
-                            "phase": phase,
-                        });
-                    }
-                    Json(manifest_value).into_response()
-                }
-                // TODO(joonas): Add better error handling here
-                t => return internal_error(anyhow!("unknown type: {}", t)),
+    match accept.into() {
+        As::Table => Json(ApplicationTable::from(vec![manifest])).into_response(),
+        As::NotSpecified => {
+            // TODO(joonas): This is a terrible hack, but for now it's what we need to do to satisfy Argo/Kubernetes since WADM doesn't support this metadata.
+            let mut manifest_value = serde_json::to_value(&manifest).unwrap();
+            // TODO(joonas): We should add lattice id to this as well, but we need it in every place where the application is listed.
+            let ns = format!("{}/{}", &name, &manifest.version());
+            let uid = Uuid::new_v5(&Uuid::NAMESPACE_OID, ns.as_bytes());
+            manifest_value["metadata"]["uid"] = json!(uid.to_string());
+            manifest_value["metadata"]["resourceVersion"] = json!(uid.to_string());
+            manifest_value["metadata"]["namespace"] = json!(namespace);
+            manifest_value["metadata"]["labels"] = json!({
+                "app.kubernetes.io/instance": &name
+            });
+            // TODO(joonas): refactor status and the metadata inputs into a struct we could just serialize
+            // The custom health check we provide for Argo will handle the case where status is missing, so this is fine for now.
+            let phase = match status.info.status_type {
+                StatusType::Undeployed => "Undeployed",
+                StatusType::Reconciling => "Reconciling",
+                StatusType::Deployed => "Deployed",
+                StatusType::Failed => "Failed",
             };
-            return response;
+            manifest_value["status"] = json!({
+                "phase": phase,
+            });
+            Json(manifest_value).into_response()
         }
-    };
-
-    not_found_error(anyhow!("applications \"{}\" not found", name))
+        // TODO(joonas): Add better error handling here
+        t => return internal_error(anyhow!("unknown type: {}", t)),
+    }
 }
 
 #[utoipa::path(
@@ -632,11 +546,11 @@ pub async fn patch_application(
     AxumState(state): AxumState<State>,
     body: Bytes,
 ) -> impl IntoResponse {
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
-    let configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &namespace);
+    let configs: Api<WasmCloudHostConfig> = Api::namespaced(kube_client, &namespace);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
@@ -648,34 +562,18 @@ pub async fn patch_application(
             Ok(data) => data,
             Err(resp) => return resp,
         };
-
-    // Fist, check if the model exists.
-    // TODO(joonas): we should likely fetch the version of the manifest that's running in Kubernetes
-    // TODO(joonas): Should this use model.status instead of model.get?
-    let get =
-        match wash_lib::app::get_model_details(&nats_client, Some(lattice_id.clone()), &name, None)
-            .await
-        {
-            Ok(res) => res,
-            Err(e) => {
-                return internal_error(anyhow!("unable to find app: {}", e));
+    let wadm_client = WadmClient::from_nats_client(&lattice_id, None, nats_client);
+    let current_manifest = match wadm_client.get_manifest(&name, None).await {
+        Ok(m) => m,
+        Err(e) => match e {
+            ClientError::NotFound(_) => {
+                return not_found_error(anyhow!("applications \"{}\" not found", name))
             }
-        };
-
-    if get.result != GetResult::Success {
-        return internal_error(anyhow!(
-            "unexpected response from wadm: result={:?}, reason={}",
-            get.result,
-            get.message
-        ));
-    }
-
-    // Prepare manifest for patching
-    let Some(manifest) = get.manifest else {
-        return internal_error(anyhow!("no manifest was found for app: {}", &name));
+            _ => return internal_error(anyhow!("unable to request app from wadm: {}", e)),
+        },
     };
 
-    let mut model = serde_json::to_value(manifest).unwrap();
+    let mut model = serde_json::to_value(current_manifest).unwrap();
     // Parse the Kubernetes-provided RFC 7386 patch
     let patch: serde_json::Value = match serde_json::from_slice(&body) {
         Ok(p) => p,
@@ -684,52 +582,19 @@ pub async fn patch_application(
 
     // Attempt to patch the currently running version
     json_patch::merge(&mut model, &patch);
-
-    let put =
-        match wash_lib::app::put_model(&nats_client, Some(lattice_id.clone()), &model.to_string())
-            .await
-        {
-            Ok(res) => res,
-            Err(e) => {
-                return internal_error(anyhow!("could not update manifest for deploy: {}", e))
-            }
-        };
-
-    match put.result {
-        PutResult::NewVersion => {}
-        _ => {
-            // For now we have to check the error message to see if we can continue,
-            // despite getting an error.
-            if !put.message.contains("already exists") {
-                return internal_error(anyhow!(
-                    "unexpected response from wadm: result={:?}, message={}",
-                    put.result,
-                    put.message
-                ));
-            }
-        }
+    let updated_manifest: Manifest = match serde_json::from_value(model) {
+        Ok(m) => m,
+        Err(e) => return internal_error(anyhow!("unable to patch the application: {}", e)),
     };
 
-    let deploy = match wash_lib::app::deploy_model(
-        &nats_client,
-        Some(lattice_id),
-        &name,
-        Some(put.current_version),
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => return internal_error(anyhow!("could not deploy app: {}", e)),
-    };
-
-    match deploy.result {
-        DeployResult::Acknowledged => Json(Application::new(name)).into_response(),
-        DeployResult::Error => internal_error(anyhow!(
-            "unexpected response from wadm: result={:?}, message={}",
-            deploy.result,
-            deploy.message
-        )),
-        DeployResult::NotFound => not_found_error(anyhow!("applications \"{}\" not found", &name)),
+    match wadm_client.put_and_deploy_manifest(updated_manifest).await {
+        Ok((app_name, _)) => Json(Application::new(app_name)).into_response(),
+        Err(e) => match e {
+            ClientError::NotFound(_) => {
+                not_found_error(anyhow!("applications \"{}\" not found", &name))
+            }
+            _ => internal_error(anyhow!("could not update application: {}", e)),
+        },
     }
 }
 
@@ -741,12 +606,12 @@ pub async fn delete_application(
     Path((namespace, name)): Path<(String, String)>,
     AxumState(state): AxumState<State>,
 ) -> impl IntoResponse {
-    let client = match Client::try_default().await {
+    let kube_client = match KubeClient::try_default().await {
         Ok(c) => c,
         Err(e) => return internal_error(anyhow!("unable to initialize kubernetes client: {}", e)),
     };
 
-    let configs: Api<WasmCloudHostConfig> = Api::namespaced(client, &namespace);
+    let configs: Api<WasmCloudHostConfig> = Api::namespaced(kube_client, &namespace);
     let cfgs = match configs.list(&ListParams::default()).await {
         Ok(objs) => objs,
         Err(e) => return internal_error(anyhow!("unable to list cosmonic host configs: {}", e)),
@@ -759,59 +624,13 @@ pub async fn delete_application(
             Err(resp) => return resp,
         };
 
-    // Fist, check if the model exists.
-    // TODO(joonas): Replace this with wash_lib::app::get_model_status once
-    // https://github.com/wasmCloud/wasmCloud/pull/1151 ships.
-    let status = match wash_lib::app::get_model_status(
-        &nats_client,
-        Some(lattice_id.clone()),
-        &name,
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => {
-            return internal_error(anyhow!("unable to request app status from wadm: {}", e));
-        }
-    };
-
-    match status.result {
-        StatusResult::Ok => {
-            // Proceed
-        }
-        StatusResult::NotFound => {
-            return not_found_error(anyhow!("apps \"{}\" not found", name));
-        }
-        StatusResult::Error => {
-            return internal_error(anyhow!(
-                "unexpected response from status command: result={:?}, message={}",
-                status.result,
-                status.message
-            ));
-        }
-    };
-
-    let delete = match wash_lib::app::delete_model_version(
-        &nats_client,
-        Some(lattice_id),
-        &name,
-        None,
-        true,
-    )
-    .await
-    {
-        Ok(res) => res,
-        Err(e) => return internal_error(anyhow!("error deleting app: {}", e)),
-    };
-
-    match delete.result {
-        // TODO(joonas): do we need to handle DeleteResult::Noop differently?
-        DeleteResult::Deleted | DeleteResult::Noop => Json(Application::new(name)).into_response(),
-        DeleteResult::Error => internal_error(anyhow!(
-            "unexpected response from wadm: result={:?}, message={}",
-            delete.result,
-            delete.message
-        )),
+    let wadm_client = WadmClient::from_nats_client(&lattice_id, None, nats_client);
+    match wadm_client.delete_manifest(&name, None).await {
+        Ok(_) => Json(Application::new(name)).into_response(),
+        Err(e) => match e {
+            ClientError::NotFound(_) => not_found_error(anyhow!("apps \"{}\" not found", name)),
+            _ => internal_error(anyhow!("could not delete app: {}", e)),
+        },
     }
 }
 
@@ -819,7 +638,7 @@ async fn get_lattice_connection(
     cfgs: impl Iterator<Item = WasmCloudHostConfig>,
     state: State,
     namespace: String,
-) -> Result<(async_nats::Client, String), Response> {
+) -> Result<(NatsClient, String), Response> {
     let connection_data =
         cfgs.map(|cfg| (cfg, namespace.clone()))
             .filter_map(|(cfg, namespace)| {
@@ -832,7 +651,7 @@ async fn get_lattice_connection(
             });
 
     for (cluster_url, ns, lattice_id, port) in connection_data {
-        match get_client(&cluster_url, &port, state.nats_creds.clone(), ns).await {
+        match get_nats_client(&cluster_url, &port, state.nats_creds.clone(), ns).await {
             Ok(c) => return Ok((c, lattice_id)),
             Err(e) => {
                 error!(err = %e, %lattice_id, "error connecting to nats");
