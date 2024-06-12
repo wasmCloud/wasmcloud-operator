@@ -59,6 +59,32 @@ stringData:
 The operator will fail to provision the wasmCloud Deployment if any of these
 secrets are missing!
 
+#### Customizing the images used for wasmCloud host and NATS leaf
+
+If you would like to customize the registry or image that gets used to provision the wasmCloud hosts and the NATS leaf that runs alongside them, you can specify the following options in the above `WasmCloudHostConfig` CRD.
+
+For wasmCloud Host, use the `image` field:
+```
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: my-wasmcloud-cluster
+spec:
+  # other config options omitted
+  image: registry.example.com/wasmcloud:1.0.2
+```
+
+For the NATS leaf, use the `natsImageLeaf` field:
+```
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: my-wasmcloud-cluster
+spec:
+  # other config options omitted
+  natsLeafImage: registry.example.com/nats:2.10.16
+```
+
 ### Image Pull Secrets
 
 You can also specify an image pull secret to use use with the wasmCloud hosts
