@@ -410,10 +410,15 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         None => format!("ghcr.io/wasmcloud/wasmcloud:{}", config.spec.version),
     };
 
+    let leaf_image = match &config.spec.nats_leaf_image {
+        Some(img) => img.clone(),
+        None => "nats:2.10-alpine".to_string(),
+    };
+
     let containers = vec![
         Container {
             name: "nats-leaf".to_string(),
-            image: Some("nats:2.10-alpine".to_string()),
+            image: Some(leaf_image),
             args: Some(vec![
                 "-js".to_string(),
                 "--config".to_string(),

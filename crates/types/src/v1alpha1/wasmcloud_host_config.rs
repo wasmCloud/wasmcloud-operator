@@ -33,6 +33,10 @@ pub struct WasmCloudHostConfigSpec {
     /// If not provided, the default image for the version will be used.
     /// Also if provided, the version field will be ignored.
     pub image: Option<String>,
+    /// The image to use for the NATS leaf that is deployed alongside the wasmCloud host.
+    /// If not provided, the default upstream image will be used.
+    /// If provided, it should be fully qualified by including the image tag.
+    pub nats_leaf_image: Option<String>,
     /// The name of a secret containing the primary cluster issuer key along with an optional set
     /// of NATS credentials.
     pub secret_name: String,
