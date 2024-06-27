@@ -51,7 +51,8 @@ tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 uuid = { workspace = true }
 wadm = { workspace = true }
-wash-lib = { workspace = true }
+wadm-client = { workspace = true }
+wadm-types = { workspace = true }
 wasmcloud-operator-types = { workspace = true }
 
 [workspace.dependencies]
@@ -91,8 +92,9 @@ tracing-opentelemetry = "0.20"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 utoipa = { version = "4.1", features = ["axum_extras"] }
 uuid = { version = "1", features = ["v5"] }
-wadm = "0.11.0"
-wash-lib = "0.20.0"
+wadm = "0.12.1"
+wadm-client = "0.1.2"
+wadm-types = "0.1.0"
 wasmcloud-operator-types = { version = "*", path = "./crates/types" }
 
 [workspace]

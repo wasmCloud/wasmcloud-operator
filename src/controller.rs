@@ -1,6 +1,6 @@
 use crate::{
-    config::OperatorConfig, docker_secret::DockerConfigJson, resources::application::get_client,
-    services::ServiceWatcher, Error, Result,
+    config::OperatorConfig, docker_secret::DockerConfigJson,
+    resources::application::get_nats_client, services::ServiceWatcher, Error, Result,
 };
 use anyhow::bail;
 use futures::StreamExt;
@@ -15,7 +15,7 @@ use k8s_openapi::api::rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
 use kube::{
     api::{Api, ObjectMeta, Patch, PatchParams},
-    client::Client,
+    client::Client as KubeClient,
     runtime::{
         controller::{Action, Config, Controller},
         finalizer::{finalizer, Event as Finalizer},
@@ -48,7 +48,7 @@ pub const WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT: &str =
     "app.kubernetes.io/managed-by=wasmcloud-operator";
 
 pub struct Context {
-    pub client: Client,
+    pub client: KubeClient,
     pub wasmcloud_config: OperatorConfig,
     pub nats_creds: Arc<RwLock<HashMap<NameNamespace, SecretString>>>,
     service_watcher: ServiceWatcher,
@@ -114,12 +114,12 @@ pub async fn reconcile(cluster: Arc<WasmCloudHostConfig>, ctx: Arc<Context>) -> 
 }
 
 async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Action> {
-    let client = ctx.client.clone();
+    let kube_client = ctx.client.clone();
     let ns = config.namespace().unwrap();
     let name = config.name_any();
-    let config: Api<WasmCloudHostConfig> = Api::namespaced(client.clone(), &ns);
+    let config: Api<WasmCloudHostConfig> = Api::namespaced(kube_client.clone(), &ns);
     let mut cfg = config.get(&name).await?;
-    let secrets = Api::<Secret>::namespaced(client, &ns);
+    let secrets = Api::<Secret>::namespaced(kube_client, &ns);
 
     let secret = secrets.get(&cfg.spec.secret_name).await.map_err(|e| {
         warn!("Failed to read secrets: {}", e);
@@ -201,7 +201,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         })?;
 
     // Start the watcher so that services are automatically created in the cluster.
-    let nats_client = get_client(
+    let nats_client = get_nats_client(
         &cfg.spec.nats_address,
         &cfg.spec.nats_client_port,
         ctx.nats_creds.clone(),
@@ -921,19 +921,19 @@ fn error_policy(_object: Arc<WasmCloudHostConfig>, _error: &Error, _ctx: Arc<Con
 }
 
 pub async fn run(state: State) -> anyhow::Result<()> {
-    let client = Client::try_default().await?;
+    let kube_client = KubeClient::try_default().await?;
 
-    let configs = Api::<WasmCloudHostConfig>::all(client.clone());
-    let cms = Api::<ConfigMap>::all(client.clone());
-    let deployments = Api::<Deployment>::all(client.clone());
-    let secrets = Api::<Secret>::all(client.clone());
-    let services = Api::<Service>::all(client.clone());
-    let pods = Api::<Pod>::all(client.clone());
+    let configs = Api::<WasmCloudHostConfig>::all(kube_client.clone());
+    let cms = Api::<ConfigMap>::all(kube_client.clone());
+    let deployments = Api::<Deployment>::all(kube_client.clone());
+    let secrets = Api::<Secret>::all(kube_client.clone());
+    let services = Api::<Service>::all(kube_client.clone());
+    let pods = Api::<Pod>::all(kube_client.clone());
 
-    let watcher = ServiceWatcher::new(client.clone(), state.config.stream_replicas);
+    let watcher = ServiceWatcher::new(kube_client.clone(), state.config.stream_replicas);
     let config = Config::default();
     let ctx = Context {
-        client,
+        client: kube_client,
         wasmcloud_config: state.config.clone(),
         nats_creds: state.nats_creds.clone(),
         service_watcher: watcher,
