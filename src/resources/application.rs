@@ -23,7 +23,7 @@ use tracing::error;
 use uuid::Uuid;
 use wadm_client::{error::ClientError, Client as WadmClient};
 use wadm_types::{
-    api::{ModelSummary, StatusType},
+    api::{ModelSummary, Status, StatusType},
     Manifest,
 };
 
@@ -237,26 +237,59 @@ impl From<Vec<ModelSummary>> for ApplicationTable {
     }
 }
 
-impl From<Vec<Manifest>> for ApplicationTable {
-    fn from(manifests: Vec<Manifest>) -> Self {
+impl From<Vec<CombinedManifest>> for ApplicationTable {
+    fn from(manifests: Vec<CombinedManifest>) -> Self {
         let mut table = Self::default();
         let rows = manifests
             .into_iter()
-            .map(|m| TableRow {
+            .map(|cm| TableRow {
                 cells: vec![
-                    m.metadata.name,
-                    "N/A".to_string(),
-                    match m.metadata.annotations.get("version") {
-                        Some(v) => v.to_owned(),
-                        None => "N/A".to_string(),
-                    },
-                    "N/A".to_string(),
+                    cm.name(),
+                    cm.deployed_version(),
+                    cm.latest_version(),
+                    cm.status(),
                 ],
             })
             .collect();
 
         table.rows = rows;
         table
+    }
+}
+
+struct CombinedManifest {
+    manifest: Manifest,
+    status: Status,
+}
+
+impl CombinedManifest {
+    pub(crate) fn new(manifest: Manifest, status: Status) -> Self {
+        Self { manifest, status }
+    }
+
+    pub(crate) fn name(&self) -> String {
+        self.manifest.metadata.name.to_owned()
+    }
+
+    pub(crate) fn deployed_version(&self) -> String {
+        match self.manifest.metadata.annotations.get("version") {
+            Some(v) => v.to_owned(),
+            None => "N/A".to_string(),
+        }
+    }
+
+    pub(crate) fn latest_version(&self) -> String {
+        self.status.version.to_owned()
+    }
+
+    pub(crate) fn status(&self) -> String {
+        match self.status.info.status_type {
+            StatusType::Undeployed => "Undeployed",
+            StatusType::Reconciling => "Reconciling",
+            StatusType::Deployed => "Deployed",
+            StatusType::Failed => "Failed",
+        }
+        .to_string()
     }
 }
 
@@ -502,11 +535,19 @@ pub async fn get_application(
     };
     let status = match wadm_client.get_manifest_status(&name).await {
         Ok(s) => s,
-        Err(_) => todo!(),
+        Err(e) => match e {
+            ClientError::NotFound(_) => {
+                return not_found_error(anyhow!("applications \"{}\" not found", name))
+            }
+            _ => return internal_error(anyhow!("unable to request app status from wadm: {}", e)),
+        },
     };
 
     match accept.into() {
-        As::Table => Json(ApplicationTable::from(vec![manifest])).into_response(),
+        As::Table => {
+            let combined_manifest = CombinedManifest::new(manifest, status);
+            Json(ApplicationTable::from(vec![combined_manifest])).into_response()
+        }
         As::NotSpecified => {
             // TODO(joonas): This is a terrible hack, but for now it's what we need to do to satisfy Argo/Kubernetes since WADM doesn't support this metadata.
             let mut manifest_value = serde_json::to_value(&manifest).unwrap();
@@ -533,7 +574,7 @@ pub async fn get_application(
             Json(manifest_value).into_response()
         }
         // TODO(joonas): Add better error handling here
-        t => return internal_error(anyhow!("unknown type: {}", t)),
+        t => internal_error(anyhow!("unknown type: {}", t)),
     }
 }
 
