@@ -64,7 +64,8 @@ secrets are missing!
 If you would like to customize the registry or image that gets used to provision the wasmCloud hosts and the NATS leaf that runs alongside them, you can specify the following options in the above `WasmCloudHostConfig` CRD.
 
 For wasmCloud Host, use the `image` field:
-```
+
+```yaml
 apiVersion: k8s.wasmcloud.dev/v1alpha1
 kind: WasmCloudHostConfig
 metadata:
@@ -75,7 +76,8 @@ spec:
 ```
 
 For the NATS leaf, use the `natsImageLeaf` field:
-```
+
+```yaml
 apiVersion: k8s.wasmcloud.dev/v1alpha1
 kind: WasmCloudHostConfig
 metadata:
