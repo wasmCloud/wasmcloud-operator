@@ -31,7 +31,7 @@ use std::sync::Arc;
 use tokio::{sync::RwLock, time::Duration};
 use tracing::{debug, info, warn};
 use wasmcloud_operator_types::v1alpha1::{
-    AppStatus, WasmCloudHostConfig, WasmCloudHostConfigStatus,
+    AppStatus, WasmCloudHostConfig, WasmCloudHostConfigSpec, WasmCloudHostConfigStatus,
 };
 
 pub static CLUSTER_CONFIG_FINALIZER: &str = "operator.k8s.wasmcloud.dev/wasmcloud-host-config";
@@ -396,6 +396,8 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         }
     }
 
+    let wasmcloud_args = configure_observability(&config.spec);
+
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
     let mut wasmcloud_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
     if let Some(scheduling_options) = &config.spec.scheduling_options {
@@ -461,6 +463,8 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         Container {
             name: "wasmcloud-host".to_string(),
             image: Some(image),
+            command: Some(vec!["wasmcloud".to_string()]),
+            args: Some(wasmcloud_args),
             env: Some(wasmcloud_env),
             resources: wasmcloud_resources,
             ..Default::default()
@@ -529,6 +533,51 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         }
     };
     template
+}
+
+fn configure_observability(spec: &WasmCloudHostConfigSpec) -> Vec<String> {
+    let mut args = Vec::<String>::new();
+    if let Some(observability) = &spec.observability {
+        if observability.enable {
+            args.push("--enable-observability".to_string());
+        }
+        if !observability.endpoint.is_empty() {
+            args.push("--override-observability-endpoint".to_string());
+            args.push(observability.endpoint.clone());
+        }
+        if let Some(protocol) = &observability.protocol {
+            args.push("--observability-protocol".to_string());
+            args.push(protocol.to_string());
+        }
+        if let Some(traces) = &observability.traces {
+            if traces.enable.unwrap_or(false) {
+                args.push("--enable-traces".to_string())
+            }
+            if let Some(traces_endpoint) = &traces.endpoint {
+                args.push("--override-traces-endpoint".to_string());
+                args.push(traces_endpoint.to_owned());
+            }
+        }
+        if let Some(metrics) = &observability.metrics {
+            if metrics.enable.unwrap_or(false) {
+                args.push("--enable-metrics".to_string())
+            }
+            if let Some(metrics_endpoint) = &metrics.endpoint {
+                args.push("--override-metrics-endpoint".to_string());
+                args.push(metrics_endpoint.to_owned());
+            }
+        }
+        if let Some(logs) = &observability.logs {
+            if logs.enable.unwrap_or(false) {
+                args.push("--enable-logs".to_string())
+            }
+            if let Some(logs_endpoint) = &logs.endpoint {
+                args.push("--override-logs-endpoint".to_string());
+                args.push(logs_endpoint.to_owned());
+            }
+        }
+    }
+    args
 }
 
 fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {

@@ -76,6 +76,8 @@ pub struct WasmCloudHostConfigSpec {
     pub policy_service: Option<PolicyService>,
     /// Kubernetes scheduling options for the wasmCloud host.
     pub scheduling_options: Option<KubernetesSchedulingOptions>,
+    /// Observability options for configuring the OpenTelemetry integration
+    pub observability: Option<ObservabilityConfiguration>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -99,6 +101,45 @@ pub struct KubernetesSchedulingOptions {
     #[schemars(schema_with = "pod_schema")]
     /// Any other pod template spec options to set for the underlying wasmCloud host pods.
     pub pod_template_additions: Option<PodSpec>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ObservabilityConfiguration {
+    #[serde(default)]
+    pub enable: bool,
+    pub endpoint: String,
+    pub protocol: Option<OtelProtocol>,
+    pub logs: Option<OtelSignalConfiguration>,
+    pub metrics: Option<OtelSignalConfiguration>,
+    pub traces: Option<OtelSignalConfiguration>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum OtelProtocol {
+    Grpc,
+    Http,
+}
+
+impl std::fmt::Display for OtelProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                OtelProtocol::Grpc => "grpc",
+                OtelProtocol::Http => "http",
+            }
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct OtelSignalConfiguration {
+    pub enable: Option<bool>,
+    pub endpoint: Option<String>,
 }
 
 /// This is a workaround for the fact that we can't override the PodSpec schema to make containers
