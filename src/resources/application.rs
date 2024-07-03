@@ -17,7 +17,7 @@ use kube::{
 };
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use tokio::sync::RwLock;
 use tracing::error;
 use uuid::Uuid;
@@ -46,6 +46,8 @@ use crate::{
  */
 
 const GROUP_VERSION: &str = "core.oam.dev/v1beta1";
+const KUBECTL_LAST_APPLIED_CONFIG_ANNOTATION: &str =
+    "kubectl.kubernetes.io/last-applied-configuration";
 
 pub struct AppError(Error);
 
@@ -614,16 +616,63 @@ pub async fn patch_application(
         },
     };
 
-    let mut model = serde_json::to_value(current_manifest).unwrap();
+    let mut current = serde_json::to_value(current_manifest).unwrap();
     // Parse the Kubernetes-provided RFC 7386 patch
-    let patch: serde_json::Value = match serde_json::from_slice(&body) {
+    let patch = match serde_json::from_slice::<Value>(&body) {
         Ok(p) => p,
         Err(e) => return internal_error(anyhow!("unable to decode the patch: {}", e)),
     };
 
+    // Remove kubectl.kubernetes.io/last-applied-configuration annotation before
+    // we compare against the patch, otherwise we'll always end up creating a new version.
+    let last_applied_configuration = current
+        .get_mut("metadata")
+        .and_then(|metadata| metadata.get_mut("annotations"))
+        .and_then(|annotations| annotations.as_object_mut())
+        .and_then(|annotations| annotations.remove(KUBECTL_LAST_APPLIED_CONFIG_ANNOTATION));
+
+    // TODO(joonas): This doesn't quite work as intended at the moment,
+    // there are some differences in terms like replicas vs. instances:
+    // * Add(AddOperation { path: "/spec/components/0/traits/0/properties/replicas", value: Number(1) }),
+    // * Remove(RemoveOperation { path: "/spec/components/0/traits/0/properties/instances" }),
+    //
+    // which cause the server to always patch. Also, top-level entries such
+    // as apiVersion, kind and metadata are always removed.
+    //
+    // let diff = json_patch::diff(&current, &patch);
+    // if diff.is_empty() {
+    //     // If there's nothing to patch, return early.
+    //     return Json(()).into_response();
+    // };
+
+    // Remove current version so that either a new version is generated,
+    // or the one set in the incoming patch gets used.
+    if let Some(annotations) = current
+        .get_mut("metadata")
+        .and_then(|metadata| metadata.get_mut("annotations"))
+        .and_then(|annotations| annotations.as_object_mut())
+    {
+        annotations.remove("version");
+    }
+
     // Attempt to patch the currently running version
-    json_patch::merge(&mut model, &patch);
-    let updated_manifest: Manifest = match serde_json::from_value(model) {
+    json_patch::merge(&mut current, &patch);
+
+    // Re-insert "kubectl.kubernetes.io/last-applied-configuration" if one was set
+    if let Some(last_applied_config) = last_applied_configuration {
+        if let Some(annotations) = current
+            .get_mut("metadata")
+            .and_then(|metadata| metadata.get_mut("annotations"))
+            .and_then(|annotations| annotations.as_object_mut())
+        {
+            annotations.insert(
+                KUBECTL_LAST_APPLIED_CONFIG_ANNOTATION.to_string(),
+                last_applied_config,
+            );
+        }
+    }
+
+    let updated_manifest = match serde_json::from_value::<Manifest>(current) {
         Ok(m) => m,
         Err(e) => return internal_error(anyhow!("unable to patch the application: {}", e)),
     };
