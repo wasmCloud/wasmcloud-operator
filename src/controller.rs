@@ -56,7 +56,6 @@ pub struct Context {
 
 #[derive(Clone, Default)]
 pub struct Secrets {
-    pub wasmcloud_cluster_seed: String,
     pub nats_creds: Option<String>,
 }
 
@@ -69,18 +68,9 @@ impl Secrets {
             );
         };
         let data = secret.data.as_ref().unwrap();
-        let wasmcloud_cluster_seed = data.get("WASMCLOUD_CLUSTER_SEED");
         let nats_creds = data.get("nats.creds");
 
-        if wasmcloud_cluster_seed.is_none() {
-            bail!(
-                "Secret {} has no WASMCLOUD_CLUSTER_SEED",
-                secret.metadata.name.as_ref().unwrap()
-            );
-        };
-
         Ok(Self {
-            wasmcloud_cluster_seed: from_utf8(&wasmcloud_cluster_seed.unwrap().0)?.to_string(),
             nats_creds: match &nats_creds {
                 Some(c) => from_utf8(&c.0).ok().map(|s| s.to_string()),
                 None => None,
@@ -258,18 +248,6 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
 
     let mut wasmcloud_env = vec![
         EnvVar {
-            name: "WASMCLOUD_CLUSTER_SEED".to_string(),
-            value_from: Some(EnvVarSource {
-                secret_key_ref: Some(SecretKeySelector {
-                    name: Some(config.spec.secret_name.clone()),
-                    key: "WASMCLOUD_CLUSTER_SEED".to_string(),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-        EnvVar {
             name: "WASMCLOUD_STRUCTURED_LOGGING_ENABLED".to_string(),
             value: Some(
                 config
@@ -299,11 +277,6 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         EnvVar {
             name: "WASMCLOUD_LATTICE_PREFIX".to_string(),
             value: Some(config.spec.lattice.clone()),
-            ..Default::default()
-        },
-        EnvVar {
-            name: "WASMCLOUD_CLUSTER_ISSUERS".to_string(),
-            value: Some(config.spec.issuers.join(",")),
             ..Default::default()
         },
         EnvVar {

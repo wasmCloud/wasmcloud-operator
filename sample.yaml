@@ -5,8 +5,6 @@ metadata:
   namespace: default
 spec:
   hostReplicas: 1
-  issuers:
-    - CDKF6OKPOBQKAX57UOXO7SCHURTOZWKWIVPC2HFJTGFXY5VJX44ECEHH
   # The lattice to connect the hosts to
   lattice: default
   # Additional labels to apply to the host other than the defaults set in the controller

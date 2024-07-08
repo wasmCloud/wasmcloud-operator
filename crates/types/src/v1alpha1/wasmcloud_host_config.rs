@@ -20,9 +20,6 @@ pub struct WasmCloudHostConfigSpec {
     /// The number of replicas to use for the wasmCloud host Deployment.
     #[serde(default = "default_host_replicas")]
     pub host_replicas: u32,
-    /// A list of cluster issuers to use when provisioning hosts. See
-    /// https://wasmcloud.com/docs/deployment/security/zero-trust-invocations for more information.
-    pub issuers: Vec<String>,
     /// The lattice to use for these hosts.
     pub lattice: String,
     /// An optional set of labels to apply to these hosts.
