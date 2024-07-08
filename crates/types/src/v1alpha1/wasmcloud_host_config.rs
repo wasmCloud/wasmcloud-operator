@@ -22,7 +22,7 @@ pub struct WasmCloudHostConfigSpec {
     pub host_replicas: u32,
     /// A list of cluster issuers to use when provisioning hosts. See
     /// https://wasmcloud.com/docs/deployment/security/zero-trust-invocations for more information.
-    pub issuers: Vec<String>,
+    pub issuers: Option<Vec<String>>,
     /// The lattice to use for these hosts.
     pub lattice: String,
     /// An optional set of labels to apply to these hosts.
@@ -39,7 +39,7 @@ pub struct WasmCloudHostConfigSpec {
     pub nats_leaf_image: Option<String>,
     /// The name of a secret containing the primary cluster issuer key along with an optional set
     /// of NATS credentials.
-    pub secret_name: String,
+    pub secret_name: Option<String>,
     /// Enable structured logging for host logs.
     pub enable_structured_logging: Option<bool>,
     /// Name of a secret containing the registry credentials
