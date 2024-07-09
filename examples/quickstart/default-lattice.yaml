@@ -1,0 +1,9 @@
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: default-lattice
+spec:
+  lattice: default
+  version: "1.0.4"
+  secretName: cluster-secrets
+  natsAddress: nats://nats-cluster.default.svc.cluster.local
