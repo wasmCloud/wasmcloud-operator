@@ -2,7 +2,7 @@
 
 This example shows the bare minimum requirements to deploy applications on wasmCloud.
 
-It relies on Kubernetes `default` namespace for simplicity.
+It relies on the Kubernetes `default` namespace for simplicity.
 
 ## Install [NATS](https://github.com/nats-io/nats-server)
 
