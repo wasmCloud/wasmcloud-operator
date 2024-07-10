@@ -46,16 +46,16 @@ kubectl -n wasmcloud-operator get deploy
 kubectl get apiservices.apiregistration.k8s.io v1beta1.core.oam.dev
 ```
 
-## Create wasmcloud cluster (Default Lattice)
+## Create wasmcloud cluster
 
 ```bash
-kubectl apply -f default-lattice.yaml
+kubectl apply -f wasmcloud-host.yaml
 ```
 
 Check wasmCloud host status with:
 
 ```bash
-kubectl describe wasmcloudhostconfig default
+kubectl describe wasmcloudhostconfig wasmcloud-host
 ```
 
 ## Managing applications using kubectl
