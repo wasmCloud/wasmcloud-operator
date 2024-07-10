@@ -109,27 +109,27 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     let name = config.name_any();
     let config: Api<WasmCloudHostConfig> = Api::namespaced(kube_client.clone(), &ns);
     let mut cfg = config.get(&name).await?;
-    let secrets = Api::<Secret>::namespaced(kube_client, &ns);
+    let secrets_api = Api::<Secret>::namespaced(kube_client, &ns);
 
-    let mut s = Secrets {
+    let mut secrets = Secrets {
         ..Default::default()
     };
 
     if let Some(secret_name) = &cfg.spec.secret_name {
-        let secret = secrets.get(secret_name).await.map_err(|e| {
+        let kube_secrets = secrets_api.get(secret_name).await.map_err(|e| {
             warn!("Failed to read secrets: {}", e);
             e
         })?;
-        s = Secrets::from_k8s_secret(&secret).map_err(|e| {
+        secrets = Secrets::from_k8s_secret(&kube_secrets).map_err(|e| {
             warn!("Failed to read secrets: {}", e);
             Error::SecretError(format!(
                 "Failed to read all secrets from {}: {}",
-                secret.metadata.name.unwrap(),
+                kube_secrets.metadata.name.unwrap(),
                 e
             ))
         })?;
 
-        if let Some(nats_creds) = &s.nats_creds {
+        if let Some(nats_creds) = &secrets.nats_creds {
             if let Err(e) = store_nats_creds(&cfg, ctx.clone(), nats_creds.clone()).await {
                 warn!("Failed to reconcile secret: {}", e);
                 return Err(e);
@@ -137,7 +137,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         }
     }
 
-    if let Err(e) = configmap(&cfg, ctx.clone(), s.nats_creds.is_some()).await {
+    if let Err(e) = configmap(&cfg, ctx.clone(), secrets.nats_creds.is_some()).await {
         warn!("Failed to reconcile configmap: {}", e);
         return Err(e);
     };
@@ -158,7 +158,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         return Err(e);
     };
 
-    let nc = s.nats_creds.map(SecretString::new);
+    let nc = secrets.nats_creds.map(SecretString::new);
     let apps = crate::resources::application::list_apps(
         &cfg.spec.nats_address,
         &cfg.spec.nats_client_port,
