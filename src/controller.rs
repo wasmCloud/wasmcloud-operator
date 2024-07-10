@@ -111,9 +111,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     let mut cfg = config.get(&name).await?;
     let secrets_api = Api::<Secret>::namespaced(kube_client, &ns);
 
-    let mut secrets = Secrets {
-        ..Default::default()
-    };
+    let mut secrets = Secrets::default();
 
     if let Some(secret_name) = &cfg.spec.secret_name {
         let kube_secrets = secrets_api.get(secret_name).await.map_err(|e| {
