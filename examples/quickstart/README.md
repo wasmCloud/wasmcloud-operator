@@ -34,7 +34,7 @@ kubectl get deploy wadm
 ## Install the operator
 
 ```sh
-kubectl apply -k ../deploy/base
+kubectl apply -k ../../deploy/base
 ```
 
 Validate installation with:
@@ -58,7 +58,7 @@ Check wasmCloud host status with:
 kubectl describe wasmcloudhostconfig default
 ```
 
-## Deploying applications using kubectl
+## Managing applications using kubectl
 
 Install the rust hello world application:
 
@@ -70,4 +70,18 @@ Check application status with:
 
 ```bash
 kubectl get applications
+```
+
+## Managing applications with wash
+
+Port forward into the NATS cluster. 4222 = NATS Service, 4223 = NATS Websockets
+
+```bash
+kubectl port-forward svc/nats-cluster 4222:4222 4223:4223
+```
+
+In another shell:
+
+```bash
+wash app list
 ```
