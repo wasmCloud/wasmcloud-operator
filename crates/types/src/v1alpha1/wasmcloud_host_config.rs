@@ -20,9 +20,10 @@ pub struct WasmCloudHostConfigSpec {
     /// The number of replicas to use for the wasmCloud host Deployment.
     #[serde(default = "default_host_replicas")]
     pub host_replicas: u32,
-    /// A list of cluster issuers to use when provisioning hosts. See
+    /// DEPRECATED: A list of cluster issuers to use when provisioning hosts. See
     /// https://wasmcloud.com/docs/deployment/security/zero-trust-invocations for more information.
-    pub issuers: Vec<String>,
+    #[deprecated(since = "0.3.1", note = "Removed in wasmcloud 1.0.0")]
+    pub issuers: Option<Vec<String>>,
     /// The lattice to use for these hosts.
     pub lattice: String,
     /// An optional set of labels to apply to these hosts.
@@ -37,9 +38,8 @@ pub struct WasmCloudHostConfigSpec {
     /// If not provided, the default upstream image will be used.
     /// If provided, it should be fully qualified by including the image tag.
     pub nats_leaf_image: Option<String>,
-    /// The name of a secret containing the primary cluster issuer key along with an optional set
-    /// of NATS credentials.
-    pub secret_name: String,
+    /// Optional. The name of a secret containing a set of NATS credentials under 'nats.creds' key.
+    pub secret_name: Option<String>,
     /// Enable structured logging for host logs.
     pub enable_structured_logging: Option<bool>,
     /// Name of a secret containing the registry credentials

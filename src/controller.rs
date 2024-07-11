@@ -7,9 +7,9 @@ use futures::StreamExt;
 use handlebars::Handlebars;
 use k8s_openapi::api::apps::v1::{DaemonSet, DaemonSetSpec, Deployment, DeploymentSpec};
 use k8s_openapi::api::core::v1::{
-    ConfigMap, ConfigMapVolumeSource, Container, ContainerPort, EnvVar, EnvVarSource, ExecAction,
-    Lifecycle, LifecycleHandler, Pod, PodSpec, PodTemplateSpec, Secret, SecretKeySelector,
-    SecretVolumeSource, Service, ServiceAccount, ServicePort, ServiceSpec, Volume, VolumeMount,
+    ConfigMap, ConfigMapVolumeSource, Container, ContainerPort, EnvVar, ExecAction, Lifecycle,
+    LifecycleHandler, Pod, PodSpec, PodTemplateSpec, Secret, SecretVolumeSource, Service,
+    ServiceAccount, ServicePort, ServiceSpec, Volume, VolumeMount,
 };
 use k8s_openapi::api::rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
@@ -56,7 +56,6 @@ pub struct Context {
 
 #[derive(Clone, Default)]
 pub struct Secrets {
-    pub wasmcloud_cluster_seed: String,
     pub nats_creds: Option<String>,
 }
 
@@ -69,18 +68,9 @@ impl Secrets {
             );
         };
         let data = secret.data.as_ref().unwrap();
-        let wasmcloud_cluster_seed = data.get("WASMCLOUD_CLUSTER_SEED");
         let nats_creds = data.get("nats.creds");
 
-        if wasmcloud_cluster_seed.is_none() {
-            bail!(
-                "Secret {} has no WASMCLOUD_CLUSTER_SEED",
-                secret.metadata.name.as_ref().unwrap()
-            );
-        };
-
         Ok(Self {
-            wasmcloud_cluster_seed: from_utf8(&wasmcloud_cluster_seed.unwrap().0)?.to_string(),
             nats_creds: match &nats_creds {
                 Some(c) => from_utf8(&c.0).ok().map(|s| s.to_string()),
                 None => None,
@@ -119,32 +109,36 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
     let name = config.name_any();
     let config: Api<WasmCloudHostConfig> = Api::namespaced(kube_client.clone(), &ns);
     let mut cfg = config.get(&name).await?;
-    let secrets = Api::<Secret>::namespaced(kube_client, &ns);
+    let secrets_api = Api::<Secret>::namespaced(kube_client, &ns);
 
-    let secret = secrets.get(&cfg.spec.secret_name).await.map_err(|e| {
-        warn!("Failed to read secrets: {}", e);
-        e
-    })?;
-    let s = Secrets::from_k8s_secret(&secret).map_err(|e| {
-        warn!("Failed to read secrets: {}", e);
-        Error::SecretError(format!(
-            "Failed to read all secrets from {}: {}",
-            secret.metadata.name.unwrap(),
+    let mut secrets = Secrets::default();
+
+    if let Some(secret_name) = &cfg.spec.secret_name {
+        let kube_secrets = secrets_api.get(secret_name).await.map_err(|e| {
+            warn!("Failed to read secrets: {}", e);
             e
-        ))
-    })?;
+        })?;
+        secrets = Secrets::from_k8s_secret(&kube_secrets).map_err(|e| {
+            warn!("Failed to read secrets: {}", e);
+            Error::SecretError(format!(
+                "Failed to read all secrets from {}: {}",
+                kube_secrets.metadata.name.unwrap(),
+                e
+            ))
+        })?;
 
-    if let Err(e) = configmap(&cfg, ctx.clone(), s.nats_creds.is_some()).await {
+        if let Some(nats_creds) = &secrets.nats_creds {
+            if let Err(e) = store_nats_creds(&cfg, ctx.clone(), nats_creds.clone()).await {
+                warn!("Failed to reconcile secret: {}", e);
+                return Err(e);
+            };
+        }
+    }
+
+    if let Err(e) = configmap(&cfg, ctx.clone(), secrets.nats_creds.is_some()).await {
         warn!("Failed to reconcile configmap: {}", e);
         return Err(e);
     };
-
-    if let Some(nats_creds) = &s.nats_creds {
-        if let Err(e) = store_nats_creds(&cfg, ctx.clone(), nats_creds.clone()).await {
-            warn!("Failed to reconcile secret: {}", e);
-            return Err(e);
-        };
-    }
 
     // TODO(protochron) these could be split out into separate functions.
     if let Err(e) = configure_auth(&cfg, ctx.clone()).await {
@@ -162,7 +156,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         return Err(e);
     };
 
-    let nc = s.nats_creds.map(SecretString::new);
+    let nc = secrets.nats_creds.map(SecretString::new);
     let apps = crate::resources::application::list_apps(
         &cfg.spec.nats_address,
         &cfg.spec.nats_client_port,
@@ -258,18 +252,6 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
 
     let mut wasmcloud_env = vec![
         EnvVar {
-            name: "WASMCLOUD_CLUSTER_SEED".to_string(),
-            value_from: Some(EnvVarSource {
-                secret_key_ref: Some(SecretKeySelector {
-                    name: Some(config.spec.secret_name.clone()),
-                    key: "WASMCLOUD_CLUSTER_SEED".to_string(),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-        EnvVar {
             name: "WASMCLOUD_STRUCTURED_LOGGING_ENABLED".to_string(),
             value: Some(
                 config
@@ -299,11 +281,6 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         EnvVar {
             name: "WASMCLOUD_LATTICE_PREFIX".to_string(),
             value: Some(config.spec.lattice.clone()),
-            ..Default::default()
-        },
-        EnvVar {
-            name: "WASMCLOUD_CLUSTER_ISSUERS".to_string(),
-            value: Some(config.spec.issuers.join(",")),
             ..Default::default()
         },
         EnvVar {
@@ -417,6 +394,42 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         None => "nats:2.10-alpine".to_string(),
     };
 
+    let mut volumes = vec![Volume {
+        name: "nats-config".to_string(),
+        config_map: Some(ConfigMapVolumeSource {
+            name: Some(config.name_any()),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }];
+
+    let mut volume_mounts = vec![VolumeMount {
+        name: "nats-config".to_string(),
+        mount_path: "/nats/nats.conf".to_string(),
+        read_only: Some(true),
+        sub_path: Some("nats.conf".to_string()),
+        ..Default::default()
+    }];
+
+    if let Some(secret_name) = &config.spec.secret_name {
+        volumes.push(Volume {
+            name: "nats-creds".to_string(),
+            secret: Some(SecretVolumeSource {
+                secret_name: Some(secret_name.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        });
+
+        volume_mounts.push(VolumeMount {
+            name: "nats-creds".to_string(),
+            mount_path: "/nats/nats.creds".to_string(),
+            sub_path: Some("nats.creds".to_string()),
+            read_only: Some(true),
+            ..Default::default()
+        });
+    }
+
     let containers = vec![
         Container {
             name: "nats-leaf".to_string(),
@@ -442,22 +455,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
                 ..Default::default()
             }),
             resources: nats_resources,
-            volume_mounts: Some(vec![
-                VolumeMount {
-                    name: "nats-config".to_string(),
-                    mount_path: "/nats/nats.conf".to_string(),
-                    read_only: Some(true),
-                    sub_path: Some("nats.conf".to_string()),
-                    ..Default::default()
-                },
-                VolumeMount {
-                    name: "nats-creds".to_string(),
-                    mount_path: "/nats/nats.creds".to_string(),
-                    sub_path: Some("nats.creds".to_string()),
-                    read_only: Some(true),
-                    ..Default::default()
-                },
-            ]),
+            volume_mounts: Some(volume_mounts),
             ..Default::default()
         },
         Container {
@@ -471,24 +469,6 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         },
     ];
 
-    let mut volumes = vec![
-        Volume {
-            name: "nats-config".to_string(),
-            config_map: Some(ConfigMapVolumeSource {
-                name: Some(config.name_any()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-        Volume {
-            name: "nats-creds".to_string(),
-            secret: Some(SecretVolumeSource {
-                secret_name: Some(config.spec.secret_name.clone()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        },
-    ];
     let service_account = config.name_any();
     let mut template = PodTemplateSpec {
         metadata: Some(ObjectMeta {
@@ -498,24 +478,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         spec: Some(PodSpec {
             service_account: Some(config.name_any()),
             containers: containers.clone(),
-            volumes: Some(vec![
-                Volume {
-                    name: "nats-config".to_string(),
-                    config_map: Some(ConfigMapVolumeSource {
-                        name: Some(config.name_any()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-                Volume {
-                    name: "nats-creds".to_string(),
-                    secret: Some(SecretVolumeSource {
-                        secret_name: Some(config.spec.secret_name.clone()),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                },
-            ]),
+            volumes: Some(volumes.clone()),
             ..Default::default()
         }),
     };

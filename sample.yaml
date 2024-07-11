@@ -5,8 +5,6 @@ metadata:
   namespace: default
 spec:
   hostReplicas: 1
-  issuers:
-    - CDKF6OKPOBQKAX57UOXO7SCHURTOZWKWIVPC2HFJTGFXY5VJX44ECEHH
   # The lattice to connect the hosts to
   lattice: default
   # Additional labels to apply to the host other than the defaults set in the controller
@@ -15,8 +13,6 @@ spec:
     cluster: kind
   # Which wasmCloud version to use
   version: "1.0.2"
-  # The name of a secret in the same namespace that provides the required secrets.
-  secretName: cluster-secrets
   logLevel: INFO
   natsAddress: nats://nats-cluster.default.svc.cluster.local
   ################################################
