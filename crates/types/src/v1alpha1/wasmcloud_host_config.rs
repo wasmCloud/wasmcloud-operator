@@ -78,6 +78,8 @@ pub struct WasmCloudHostConfigSpec {
     pub scheduling_options: Option<KubernetesSchedulingOptions>,
     /// Observability options for configuring the OpenTelemetry integration
     pub observability: Option<ObservabilityConfiguration>,
+    /// Certificates: Authorities, client certificates
+    pub certificates: Option<WasmCloudHostCertificates>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -185,6 +187,36 @@ fn default_nats_port() -> u16 {
 
 fn default_nats_leafnode_port() -> u16 {
     7422
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct ConfigMapSource {
+    /// Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+    pub name: String,
+
+    /// Specify whether the ConfigMap must be defined
+    pub optional: Option<bool>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct SecretSource {
+    /// Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+    pub name: String,
+
+    /// Specify whether the ConfigMap must be defined
+    pub optional: Option<bool>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct CertificateSource {
+    pub config_map_ref: Option<ConfigMapSource>,
+    pub secret_ref: Option<SecretSource>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct WasmCloudHostCertificates {
+    pub authorities: Option<Vec<CertificateSource>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]

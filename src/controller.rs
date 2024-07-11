@@ -247,7 +247,7 @@ async fn cleanup(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<Acti
     Ok(Action::await_change())
 }
 
-fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplateSpec {
+async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> PodTemplateSpec {
     let labels = pod_labels(config);
 
     let mut wasmcloud_env = vec![
@@ -373,7 +373,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         }
     }
 
-    let wasmcloud_args = configure_observability(&config.spec);
+    let mut wasmcloud_args = configure_observability(&config.spec);
 
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
     let mut wasmcloud_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
@@ -403,13 +403,56 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         ..Default::default()
     }];
 
-    let mut volume_mounts = vec![VolumeMount {
+    let mut nats_volume_mounts = vec![VolumeMount {
         name: "nats-config".to_string(),
         mount_path: "/nats/nats.conf".to_string(),
         read_only: Some(true),
         sub_path: Some("nats.conf".to_string()),
         ..Default::default()
     }];
+
+    let mut wasm_volume_mounts: Vec<VolumeMount> = vec![];
+    if let Some(certificates) = &config.spec.certificates {
+        if let Some(authorities) = &certificates.authorities {
+            for (i, authority) in authorities.iter().enumerate() {
+                // configmaps
+                if let Some(configmap) = &authority.config_map_ref {
+                    let volume_name = format!("cert-authority-{}", i);
+                    let volume_path =
+                        format!("/wasmcloud/certificates/authorities/{}", volume_name);
+                    match discover_configmap_certificates(
+                        config.namespace().unwrap(),
+                        configmap.name.clone(),
+                        &ctx,
+                    )
+                    .await
+                    {
+                        Ok(items) => {
+                            wasmcloud_args.extend(items.iter().map(|cm_item| {
+                                format!("--tls-ca-path {}/{}", volume_path, cm_item)
+                            }))
+                        }
+                        Err(_) => continue,
+                    };
+                    volumes.push(Volume {
+                        name: volume_name.clone(),
+                        config_map: Some(ConfigMapVolumeSource {
+                            name: Some(configmap.name.clone()),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    });
+
+                    wasm_volume_mounts.push(VolumeMount {
+                        name: volume_name.clone(),
+                        read_only: Some(true),
+                        mount_path: volume_path,
+                        ..Default::default()
+                    });
+                }
+            }
+        }
+    }
 
     if let Some(secret_name) = &config.spec.secret_name {
         volumes.push(Volume {
@@ -421,7 +464,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
             ..Default::default()
         });
 
-        volume_mounts.push(VolumeMount {
+        nats_volume_mounts.push(VolumeMount {
             name: "nats-creds".to_string(),
             mount_path: "/nats/nats.creds".to_string(),
             sub_path: Some("nats.creds".to_string()),
@@ -455,7 +498,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
                 ..Default::default()
             }),
             resources: nats_resources,
-            volume_mounts: Some(volume_mounts),
+            volume_mounts: Some(nats_volume_mounts),
             ..Default::default()
         },
         Container {
@@ -465,6 +508,7 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
             args: Some(wasmcloud_args),
             env: Some(wasmcloud_env),
             resources: wasmcloud_resources,
+            volume_mounts: Some(wasm_volume_mounts),
             ..Default::default()
         },
     ];
@@ -496,6 +540,31 @@ fn pod_template(config: &WasmCloudHostConfig, _ctx: Arc<Context>) -> PodTemplate
         }
     };
     template
+}
+
+async fn discover_configmap_certificates(
+    namespace: String,
+    name: String,
+    ctx: &Context,
+) -> Result<Vec<String>> {
+    let kube_client = ctx.client.clone();
+    let api = Api::<ConfigMap>::namespaced(kube_client, &namespace);
+    let mut certs = Vec::new();
+
+    let raw_config_map = api.get(name.as_str()).await.map_err(|e| {
+        warn!("Failed to get configmap for certificate discovery: {}", e);
+        e
+    })?;
+
+    if let Some(raw_data) = raw_config_map.data {
+        for (key, _) in raw_data {
+            if key.ends_with(".crt") {
+                certs.push(key)
+            }
+        }
+    }
+
+    Ok(certs)
 }
 
 fn configure_observability(spec: &WasmCloudHostConfigSpec) -> Vec<String> {
@@ -543,8 +612,8 @@ fn configure_observability(spec: &WasmCloudHostConfigSpec) -> Vec<String> {
     args
 }
 
-fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {
-    let pod_template = pod_template(config, ctx);
+async fn deployment_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DeploymentSpec {
+    let pod_template = pod_template(config, ctx).await;
     let ls = LabelSelector {
         match_labels: Some(selector_labels(config)),
         ..Default::default()
@@ -582,8 +651,8 @@ fn selector_labels(config: &WasmCloudHostConfig) -> BTreeMap<String, String> {
     labels
 }
 
-fn daemonset_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DaemonSetSpec {
-    let pod_template = pod_template(config, ctx);
+async fn daemonset_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> DaemonSetSpec {
+    let pod_template = pod_template(config, ctx).await;
     let ls = LabelSelector {
         match_labels: Some(selector_labels(config)),
         ..Default::default()
@@ -665,7 +734,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
 
     if let Some(scheduling_options) = &config.spec.scheduling_options {
         if scheduling_options.daemonset {
-            let mut spec = daemonset_spec(config, ctx.clone());
+            let mut spec = daemonset_spec(config, ctx.clone()).await;
             spec.template.spec.as_mut().unwrap().containers[1]
                 .env
                 .as_mut()
@@ -693,7 +762,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
             .await?;
         }
     } else {
-        let mut spec = deployment_spec(config, ctx.clone());
+        let mut spec = deployment_spec(config, ctx.clone()).await;
         spec.template.spec.as_mut().unwrap().containers[1]
             .env
             .as_mut()
