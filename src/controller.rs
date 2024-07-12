@@ -424,8 +424,8 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
                 let volume_name = format!("cert-authority-{}", i);
                 let volume_path = format!("/wasmcloud/certificates/authorities/{}", volume_name);
                 match discover_configmap_certificates(
-                    config.namespace().unwrap_or_default(),
-                    configmap.name.clone(),
+                    config.namespace().unwrap_or_default().as_str(),
+                    configmap.name.clone().as_str(),
                     &ctx,
                 )
                 .await
@@ -554,15 +554,15 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
 }
 
 async fn discover_configmap_certificates(
-    namespace: String,
-    name: String,
+    namespace: &str,
+    name: &str,
     ctx: &Context,
 ) -> Result<Vec<String>> {
     let kube_client = ctx.client.clone();
     let api = Api::<ConfigMap>::namespaced(kube_client, &namespace);
     let mut certs = Vec::new();
 
-    let raw_config_map = api.get(name.as_str()).await?;
+    let raw_config_map = api.get(name).await?;
 
     if let Some(raw_data) = raw_config_map.data {
         for (key, _) in raw_data {
