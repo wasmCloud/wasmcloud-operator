@@ -424,7 +424,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
                 let volume_name = format!("cert-authority-{}", i);
                 let volume_path = format!("/wasmcloud/certificates/authorities/{}", volume_name);
                 match discover_configmap_certificates(
-                    config.namespace().unwrap(),
+                    config.namespace().unwrap_or_default(),
                     configmap.name.clone(),
                     &ctx,
                 )
