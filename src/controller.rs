@@ -424,6 +424,13 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
             let volume_path = format!("/wasmcloud/certificates/{volume_name}");
             let mut items: Vec<String> = vec![];
 
+            // The Volume interface is quite broad. Permit only known types.
+            if authority.secret.is_none() && authority.config_map.is_none() {
+                return Err(Error::CertificateError(format!(
+                    "'{authority_name}' has to be a Configmap or Secret"
+                )));
+            }
+
             // secrets
             if let Some(secret_ref) = &authority.secret {
                 let secret_name = match &secret_ref.secret_name {
