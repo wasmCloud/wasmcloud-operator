@@ -418,49 +418,85 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         .clone()
         .and_then(|certificates| certificates.authorities)
     {
-        for (i, authority) in authorities.iter().enumerate() {
-            // configmaps
-            if let Some(configmap) = &authority.config_map_ref {
-                let volume_name = format!("cert-authority-{i}");
-                let volume_path = format!("/wasmcloud/certificates/authorities/{volume_name}");
-                match discover_configmap_certificates(
-                    config.namespace().unwrap_or_default().as_str(),
-                    configmap.name.as_str(),
-                    &ctx,
-                )
-                .await
-                {
-                    Ok(items) => {
-                        for item in items {
-                            wasmcloud_args.push("--tls-ca-path".to_string());
-                            wasmcloud_args.push(format!("{volume_path}/{item}"));
-                        }
-                    }
-                    Err(e) => {
-                        if let Some(is_optional) = &configmap.optional {
-                            if !is_optional {
-                                return Err(e);
-                            }
-                        } else {
-                            continue;
-                        }
+        for authority in authorities.iter() {
+            let authority_name = authority.name.clone();
+            let volume_name = format!("ca-{authority_name}");
+            let volume_path = format!("/wasmcloud/certificates/{volume_name}");
+            let mut items: Vec<String> = vec![];
+
+            // secrets
+            if let Some(secret_ref) = &authority.secret {
+                let secret_name = match &secret_ref.secret_name {
+                    Some(s) => s,
+                    None => {
+                        return Err(Error::CertificateError(format!(
+                            "Missing secret name for authority '{authority_name}'"
+                        )))
                     }
                 };
+
+                items = discover_secret_certificates(
+                    config.namespace().unwrap_or_default().as_str(),
+                    secret_name.as_str(),
+                    &ctx,
+                )
+                .await?;
+
+                if items.is_empty() {
+                    continue;
+                }
+
                 volumes.push(Volume {
                     name: volume_name.clone(),
-                    config_map: Some(ConfigMapVolumeSource {
-                        name: Some(configmap.name.clone()),
+                    secret: Some(SecretVolumeSource {
+                        secret_name: Some(secret_name.to_string()),
                         ..Default::default()
                     }),
                     ..Default::default()
                 });
+            }
 
-                wasm_volume_mounts.push(VolumeMount {
+            // configmaps
+            if let Some(configmap_ref) = &authority.config_map {
+                let configmap_name = match &configmap_ref.name {
+                    Some(s) => s,
+                    None => {
+                        return Err(Error::CertificateError(format!(
+                            "Missing configmap name for authority '{authority_name}'"
+                        )))
+                    }
+                };
+                items = discover_configmap_certificates(
+                    config.namespace().unwrap_or_default().as_str(),
+                    configmap_name.as_str(),
+                    &ctx,
+                )
+                .await?;
+
+                if items.is_empty() {
+                    continue;
+                }
+
+                volumes.push(Volume {
                     name: volume_name.clone(),
-                    read_only: Some(true),
-                    mount_path: volume_path,
+                    config_map: Some(ConfigMapVolumeSource {
+                        name: Some(configmap_name.to_string()),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 });
+            }
+
+            wasm_volume_mounts.push(VolumeMount {
+                name: volume_name.clone(),
+                read_only: Some(true),
+                mount_path: volume_path.clone(),
+                ..Default::default()
+            });
+
+            for item in items {
+                wasmcloud_args.push("--tls-ca-path".to_string());
+                wasmcloud_args.push(format!("{volume_path}/{item}"));
             }
         }
     }
@@ -559,7 +595,29 @@ async fn discover_configmap_certificates(
     ctx: &Context,
 ) -> Result<Vec<String>> {
     let kube_client = ctx.client.clone();
-    let api = Api::<ConfigMap>::namespaced(kube_client, &namespace);
+    let api = Api::<ConfigMap>::namespaced(kube_client, namespace);
+    let mut certs = Vec::new();
+
+    let raw_config_map = api.get(name).await?;
+
+    if let Some(raw_data) = raw_config_map.data {
+        for (key, _) in raw_data {
+            if key.ends_with(".crt") {
+                certs.push(key)
+            }
+        }
+    }
+
+    Ok(certs)
+}
+
+async fn discover_secret_certificates(
+    namespace: &str,
+    name: &str,
+    ctx: &Context,
+) -> Result<Vec<String>> {
+    let kube_client = ctx.client.clone();
+    let api = Api::<Secret>::namespaced(kube_client, namespace);
     let mut certs = Vec::new();
 
     let raw_config_map = api.get(name).await?;

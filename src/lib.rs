@@ -31,6 +31,9 @@ pub enum Error {
     #[error("Error retrieving secrets: {0}")]
     SecretError(String),
 
+    #[error("Certificate error: {0}")]
+    CertificateError(String),
+
     #[error("Error rendering template: {0}")]
     RenderError(#[from] RenderError),
 }
