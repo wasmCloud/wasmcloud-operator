@@ -436,8 +436,8 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
                 };
 
                 items = discover_secret_certificates(
-                    config.namespace().unwrap_or_default().as_str(),
-                    secret_name.as_str(),
+                    &config.namespace().unwrap_or_default(),
+                    secret_name,
                     &ctx,
                 )
                 .await?;
@@ -467,8 +467,8 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
                     }
                 };
                 items = discover_configmap_certificates(
-                    config.namespace().unwrap_or_default().as_str(),
-                    configmap_name.as_str(),
+                    &config.namespace().unwrap_or_default(),
+                    configmap_name,
                     &ctx,
                 )
                 .await?;
