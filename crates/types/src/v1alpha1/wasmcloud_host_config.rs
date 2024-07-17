@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{PodSpec, ResourceRequirements};
+use k8s_openapi::api::core::v1::{PodSpec, ResourceRequirements, Volume};
 use kube::CustomResource;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
@@ -78,6 +78,8 @@ pub struct WasmCloudHostConfigSpec {
     pub scheduling_options: Option<KubernetesSchedulingOptions>,
     /// Observability options for configuring the OpenTelemetry integration
     pub observability: Option<ObservabilityConfiguration>,
+    /// Certificates: Authorities, client certificates
+    pub certificates: Option<WasmCloudHostCertificates>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -185,6 +187,11 @@ fn default_nats_port() -> u16 {
 
 fn default_nats_leafnode_port() -> u16 {
     7422
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
+pub struct WasmCloudHostCertificates {
+    pub authorities: Option<Vec<Volume>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
