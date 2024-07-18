@@ -377,11 +377,14 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
 
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
     let mut wasmcloud_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;
-    if let Some(scheduling_options) = &config.spec.scheduling_options {
-        if let Some(resources) = &scheduling_options.resources {
-            nats_resources = resources.nats.clone();
-            wasmcloud_resources = resources.wasmcloud.clone();
-        }
+    if let Some(resources) = &config
+        .spec
+        .scheduling_options
+        .as_ref()
+        .and_then(|so| so.resources.clone())
+    {
+        nats_resources.clone_from(&resources.nats);
+        wasmcloud_resources.clone_from(&resources.wasmcloud);
     }
 
     let image = match &config.spec.image {
@@ -581,17 +584,20 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         }),
     };
 
-    if let Some(scheduling_options) = &config.spec.scheduling_options {
-        if let Some(pod_overrides) = &scheduling_options.pod_template_additions {
-            let mut overrides = pod_overrides.clone();
-            overrides.service_account_name = Some(service_account);
-            overrides.containers = containers.clone();
-            if let Some(vols) = overrides.volumes {
-                volumes.extend(vols);
-            }
-            overrides.volumes = Some(volumes);
-            template.spec = Some(overrides);
+    if let Some(pod_overrides) = &config
+        .spec
+        .scheduling_options
+        .as_ref()
+        .and_then(|so| so.pod_template_additions.clone())
+    {
+        let mut overrides = pod_overrides.clone();
+        overrides.service_account_name = Some(service_account);
+        overrides.containers.clone_from(&containers);
+        if let Some(vols) = overrides.volumes {
+            volumes.extend(vols);
         }
+        overrides.volumes = Some(volumes);
+        template.spec = Some(overrides);
     };
     Ok(template)
 }
