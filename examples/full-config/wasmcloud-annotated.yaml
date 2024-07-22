@@ -49,7 +49,7 @@ spec:
     # If provided, enables policy checks on start actions and component invocations.
     topic: "wasmcloud.policy"
     # If provided, allows the host to subscribe to updates on past policy decisions. Requires 'topic' above to be set.
-    changesTopic: "bar"
+    changesTopic: "wasmcloud.policy.changes"
     # If provided, allows setting a custom timeout for requesting policy decisions. Defaults to 1000. Requires 'topic' to be set.
     timeoutMs: 10000
   # Optional: Observability options for configuring the OpenTelemetry integration.
