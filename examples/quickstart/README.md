@@ -8,27 +8,27 @@ It relies on the Kubernetes `default` namespace for simplicity.
 
 ```bash
 helm repo add nats https://nats-io.github.io/k8s/helm/charts/
-helm upgrade --install -f nats-values.yaml nats-cluster nats/nats
+helm upgrade --install -f nats-values.yaml nats nats/nats
 ```
 
 Validate installation with:
 
 ```bash
 # make sure pods are ready
-kubectl get statefulset,deployment -l app.kubernetes.io/instance=nats-cluster
+kubectl get statefulset,deployment -l app.kubernetes.io/instance=nats
 ```
 
 ## Install wasmCloud Application Deployment Manager - [wadm](https://github.com/wasmCloud/wadm)
 
 ```sh
-helm install wadm -f wadm-values.yaml --version 0.2.0 oci://ghcr.io/wasmcloud/charts/wadm
+helm install wadm -f wadm-values.yaml oci://ghcr.io/wasmcloud/charts/wadm
 ```
 
 Validate installation with:
 
 ```bash
 # make sure pods are ready
-kubectl get deploy wadm
+kubectl rollout status deploy -l app.kubernetes.io/instance=wadm
 ```
 
 ## Install the operator
@@ -41,7 +41,7 @@ Validate installation with:
 
 ```bash
 # make sure pods are ready
-kubectl -n wasmcloud-operator get deploy
+kubectl rollout status deploy -l app=wasmcloud-operator -n wasmcloud-operator
 # apiservice should be available
 kubectl get apiservices.apiregistration.k8s.io v1beta1.core.oam.dev
 ```
@@ -77,7 +77,7 @@ kubectl get applications
 Port forward into the NATS cluster. 4222 = NATS Service, 4223 = NATS Websockets
 
 ```bash
-kubectl port-forward svc/nats-cluster 4222:4222 4223:4223
+kubectl port-forward svc/nats 4222:4222 4223:4223
 ```
 
 In another shell:

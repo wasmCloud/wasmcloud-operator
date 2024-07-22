@@ -5,4 +5,3 @@ metadata:
 spec:
   lattice: default
   version: "1.0.4"
-  natsAddress: nats://nats-cluster.default.svc.cluster.local

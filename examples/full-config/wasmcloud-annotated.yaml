@@ -13,7 +13,7 @@ spec:
     test: value
     cluster: kind
   # Required: Which wasmCloud version to use.
-  version: "1.0.2"
+  version: "1.0.4"
   # Optional: The image to use for the wasmCloud host.
   # If provided, the 'version' field will be ignored.
   image: "registry/wasmcloud:tag"
@@ -37,7 +37,7 @@ spec:
   # Optional: The log level to use for the host. Defaults to "INFO".
   logLevel: INFO
   # Optional: The address of the NATS server to connect to. Defaults to "nats://nats.default.svc.cluster.local".
-  natsAddress: nats://nats-cluster.default.svc.cluster.local
+  natsAddress: nats://nats.default.svc.cluster.local
   # Optional: Allow the host to deploy using the latest tag on OCI components or providers. Defaults to "false".
   allowLatest: true
   # Optional: Allow the host to pull artifacts from OCI registries insecurely.
@@ -54,19 +54,20 @@ spec:
     timeoutMs: 10000
   # Optional: Observability options for configuring the OpenTelemetry integration.
   observability:
+    # NOTE: Enables all signals (logs/metrics/traces) at once. Set it to 'false' and enable each signal individually in case you don't need all of them.
     enable: true
     endpoint: "otel-collector.svc"
     # Either 'grpc' or 'http'
-    protocol: "grpc"
+    protocol: "http"
     logs:
-      enable: true
+      enable: false
       endpoint: "logs-specific-otel-collector.svc"
     metrics:
-      enable: true
+      enable: false
       endpoint: "metrics-specific-otel-collector.svc"
     traces:
-      enable: true
-      endpoint: "metrics-specific-otel-collector.svc"
+      enable: false
+      endpoint: "traces-specific-otel-collector.svc"
   # Optional: Additional options to control how the underlying wasmCloud hosts are scheduled in Kubernetes.
   # This includes setting resource requirements for the nats and wasmCloud host
   # containers along with any additional pot template settings.
@@ -78,10 +79,10 @@ spec:
     resources:
       nats:
         requests:
-          cpu: 100m
+          cpu: "1"
       wasmCloudHost:
         requests:
-          cpu: 100m
+          cpu: "1"
     # Optional: Any additional pod template settings to apply to the wasmCloud host pods.
     # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
     # Note that you *cannot* set the `containers` field here as it is managed by the controller.

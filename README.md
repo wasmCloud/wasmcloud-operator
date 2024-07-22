@@ -18,14 +18,14 @@ spec:
   # The number of wasmCloud host pods to run
   hostReplicas: 2
   # The lattice to connect the hosts to
-  lattice: 83a5b52e-17cf-4080-bac8-f844099f142e
+  lattice: default
   # Additional labels to apply to the host other than the defaults set in the operator
   hostLabels:
     some-label: value
   # The address to connect to nats
-  natsAddress: nats://nats-cluster.default.svc.cluster.local
+  natsAddress: nats://nats.default.svc.cluster.local
   # Which wasmCloud version to use
-  version: 1.0.2
+  version: 1.0.4
   # Enable the following to run the wasmCloud hosts as a DaemonSet
   #daemonset: true
   # The name of the image pull secret to use with wasmCloud hosts so that they
@@ -121,7 +121,7 @@ config:
 
 ```sh
 helm repo add nats https://nats-io.github.io/k8s/helm/charts/
-helm upgrade --install -f values.yaml nats-cluster nats/nats
+helm upgrade --install -f values.yaml nats nats/nats
 ```
 
 ### Running Wadm
@@ -133,7 +133,7 @@ NATS server deployed above, all you need in your `values.yaml` file is:
 wadm:
   config:
     nats:
-      server: "nats-cluster.default.svc.cluster.local:4222"
+      server: "nats.default.svc.cluster.local:4222"
 ```
 
 You can deploy Wadm using your values file and Helm:

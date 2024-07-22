@@ -3,4 +3,4 @@ wadm:
     tag: v0.12.2
   config:
     nats:
-      server: "nats-cluster.default.svc.cluster.local:4222"
+      server: "nats.default.svc.cluster.local:4222"
