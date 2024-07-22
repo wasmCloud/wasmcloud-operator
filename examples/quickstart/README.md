@@ -15,7 +15,7 @@ Validate installation with:
 
 ```bash
 # make sure pods are ready
-kubectl get statefulset,deployment -l app.kubernetes.io/instance=nats
+kubectl rollout status deploy,sts -l app.kubernetes.io/instance=nats
 ```
 
 ## Install wasmCloud Application Deployment Manager - [wadm](https://github.com/wasmCloud/wadm)
