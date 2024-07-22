@@ -82,10 +82,10 @@ spec:
       wasmCloudHost:
         requests:
           cpu: 100m
-      # Optional: Any additional pod template settings to apply to the wasmCloud host pods.
-      # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
-      # Note that you *cannot* set the `containers` field here as it is managed by the controller.
-      podTemplateAdditions:
-        spec:
-          nodeSelector:
-            kubernetes.io/os: linux
+    # Optional: Any additional pod template settings to apply to the wasmCloud host pods.
+    # See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.29/#podspec-v1-core for all valid options.
+    # Note that you *cannot* set the `containers` field here as it is managed by the controller.
+    podTemplateAdditions:
+      spec:
+        nodeSelector:
+          kubernetes.io/os: linux
