@@ -373,6 +373,14 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         }
     }
 
+    if let Some(secrets_prefix) = &config.spec.secrets_topic_prefix {
+        wasmcloud_env.push(EnvVar {
+            name: "WASMCLOUD_SECRETS_TOPIC".to_string(),
+            value: Some(secrets_prefix.clone()),
+            ..Default::default()
+        })
+    }
+
     let mut wasmcloud_args = configure_observability(&config.spec);
 
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;

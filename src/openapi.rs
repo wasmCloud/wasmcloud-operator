@@ -53,6 +53,25 @@ pub struct Metadata {
 pub struct Specification {
     /// The list of components for describing an application
     pub components: Vec<Component>,
+
+    /// The list of policies describing an application. This is for providing application-wide
+    /// setting such as configuration for a secrets backend, how to render Kubernetes services,
+    /// etc. It can be omitted if no policies are needed for an application.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub policies: Vec<Policy>,
+}
+
+/// A policy definition
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, ToSchema)]
+#[schema(as = dev::oam::core::v1beta1::Policy)]
+pub struct Policy {
+    /// The name of this policy
+    pub name: String,
+    /// The properties for this policy
+    pub properties: BTreeMap<String, String>,
+    /// The type of the policy
+    #[serde(rename = "type")]
+    pub policy_type: String,
 }
 
 /// A component definition
@@ -178,19 +197,20 @@ pub struct Spread {
 #[derive(OpenApi)]
 #[openapi(
     components(schemas(
-        Application,
-        Metadata,
-        Specification,
-        Component,
-        Properties,
         ActorProperties,
-        CapabilityProperties,
+        Application,
         CapabilityConfig,
+        CapabilityProperties,
+        Component,
+        LinkdefProperty,
+        Metadata,
+        Policy,
+        Properties,
+        Specification,
+        Spread,
+        SpreadScalerProperty,
         Trait,
         TraitProperty,
-        LinkdefProperty,
-        SpreadScalerProperty,
-        Spread,
     )),
     info(
         description = "The OAM Application API provides a way to manage applications in a Kubernetes cluster."
@@ -266,230 +286,41 @@ async fn openapi_v2() -> impl IntoResponse {
 
 const OPENAPI_V2_SPEC_JSON: &str = r##"
 {
-    "info": {
-      "title": "wasmcloud-operator",
-      "description": "The OAM Application API provides a way to manage applications in a Kubernetes cluster.",
-      "license": {
-        "name": ""
-      },
-      "version": "0.1.6"
+  "swagger": "2.0",
+  "info": {
+    "title": "wasmcloud-operator",
+    "description": "The OAM Application API provides a way to manage applications in a Kubernetes cluster.",
+    "license": {
+      "name": "Apache 2.0"
     },
-    "paths": {
-      "/apis/core.oam.dev/v1beta1": {
-        "get": {
-          "tags": [
-            "crate::router"
-          ],
-          "operationId": "api_resources",
-          "responses": {},
-          "parameters": []
-        }
-      },
-      "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications": {
-        "get": {
-          "tags": [
-            "crate::resources::application"
-          ],
-          "operationId": "list_applications",
-          "parameters": [
-            {
-              "name": "namespace",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            }
-          ],
-          "responses": {},
-          "x-kubernetes-group-version-kind": [
-            {
-              "group": "core.oam.dev",
-              "kind": "Application",
-              "version": "v1beta1"
-            }
-          ]
-        },
-        "post": {
-          "tags": [
-            "crate::resources::application"
-          ],
-          "operationId": "create_application",
-          "parameters": [
-            {
-              "name": "namespace",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            },
-            {
-              "description": "",
-              "required": true,
-              "name": "body",
-              "in": "body",
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            }
-          ],
-          "responses": {},
-          "consumes": [
-            "application/octet-stream"
-          ],
-          "x-kubernetes-group-version-kind": [
-            {
-              "group": "core.oam.dev",
-              "kind": "Application",
-              "version": "v1beta1"
-            }
-          ]
-        }
-      },
-      "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications/{name}": {
-        "get": {
-          "tags": [
-            "crate::resources::application"
-          ],
-          "operationId": "get_application",
-          "parameters": [
-            {
-              "name": "namespace",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            },
-            {
-              "name": "name",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            }
-          ],
-          "responses": {},
-          "x-kubernetes-group-version-kind": [
-            {
-              "group": "core.oam.dev",
-              "kind": "Application",
-              "version": "v1beta1"
-            }
-          ]
-        },
-        "delete": {
-          "tags": [
-            "crate::resources::application"
-          ],
-          "operationId": "delete_application",
-          "parameters": [
-            {
-              "name": "namespace",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            },
-            {
-              "name": "name",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            }
-          ],
-          "responses": {},
-          "x-kubernetes-group-version-kind": [
-            {
-              "group": "core.oam.dev",
-              "kind": "Application",
-              "version": "v1beta1"
-            }
-          ]
-        },
-        "patch": {
-          "tags": [
-            "crate::resources::application"
-          ],
-          "operationId": "patch_application",
-          "parameters": [
-            {
-              "name": "namespace",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            },
-            {
-              "name": "name",
-              "in": "path",
-              "required": true,
-              "type": "string"
-            },
-            {
-              "description": "",
-              "required": true,
-              "name": "body",
-              "in": "body",
-              "schema": {
-                "type": "string",
-                "format": "binary"
-              }
-            }
-          ],
-          "responses": {},
-          "consumes": [
-            "application/octet-stream"
-          ],
-          "x-kubernetes-group-version-kind": [
-            {
-              "group": "core.oam.dev",
-              "kind": "Application",
-              "version": "v1beta1"
-            }
-          ]
-        }
+    "version": "0.4.0"
+  },
+  "paths": {
+    "/apis/core.oam.dev/v1beta1": {
+      "get": {
+        "parameters": [],
+        "responses": {},
+        "tags": [
+          "crate::router"
+        ],
+        "operationId": "api_resources"
       }
     },
-    "swagger": "2.0",
-    "definitions": {
-      "dev.oam.core.v1beta1.ActorProperties": {
-        "type": "object",
-        "required": [
-          "image"
-        ],
-        "properties": {
-          "image": {
-            "type": "string",
-            "description": "The image reference to use"
-          }
-        },
-        "x-kubernetes-group-version-kind": [
+    "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications": {
+      "get": {
+        "parameters": [
           {
-            "group": "core.oam.dev",
-            "kind": "ActorProperties",
-            "version": "v1beta1"
+            "in": "path",
+            "name": "namespace",
+            "required": true,
+            "type": "string"
           }
-        ]
-      },
-      "dev.oam.core.v1beta1.Application": {
-        "type": "object",
-        "description": "An OAM manifest",
-        "required": [
-          "apiVersion",
-          "kind",
-          "metadata",
-          "spec"
         ],
-        "properties": {
-          "apiVersion": {
-            "type": "string",
-            "description": "The OAM version of the manifest"
-          },
-          "kind": {
-            "type": "string",
-            "description": "The kind or type of manifest described by the spec"
-          },
-          "metadata": {
-            "$ref": "#/definitions/dev.oam.core.v1beta1.Metadata"
-          },
-          "spec": {
-            "$ref": "#/definitions/dev.oam.core.v1beta1.Specification"
-          }
-        },
+        "responses": {},
+        "tags": [
+          "crate::resources::application"
+        ],
+        "operationId": "list_applications",
         "x-kubernetes-group-version-kind": [
           {
             "group": "core.oam.dev",
@@ -498,282 +329,584 @@ const OPENAPI_V2_SPEC_JSON: &str = r##"
           }
         ]
       },
-      "dev.oam.core.v1beta1.CapabilityConfig": {
-        "description": "Right now providers can technically use any config format they want, although most use JSON.\nThis enum takes that into account and allows either type of data to be passed",
-        "x-kubernetes-group-version-kind": [
+      "post": {
+        "parameters": [
           {
-            "group": "core.oam.dev",
-            "kind": "CapabilityConfig",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.CapabilityProperties": {
-        "type": "object",
-        "required": [
-          "image",
-          "contract"
-        ],
-        "properties": {
-          "config": {
-            "allOf": [
-              {
-                "$ref": "#/definitions/dev.oam.core.v1beta1.CapabilityConfig"
-              }
-            ],
-            "x-nullable": true
-          },
-          "contract": {
-            "type": "string",
-            "description": "The contract ID of this capability"
-          },
-          "image": {
-            "type": "string",
-            "description": "The image reference to use"
-          },
-          "link_name": {
-            "type": "string",
-            "description": "An optional link name to use for this capability",
-            "x-nullable": true
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "CapabilityProperties",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Component": {
-        "allOf": [
-          {
-            "$ref": "#/definitions/dev.oam.core.v1beta1.Properties"
+            "in": "path",
+            "name": "namespace",
+            "required": true,
+            "type": "string"
           },
           {
-            "type": "object",
-            "required": [
-              "name"
-            ],
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "The name of this component"
-              },
-              "traits": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/definitions/dev.oam.core.v1beta1.Trait"
-                },
-                "description": "A list of various traits assigned to this component",
-                "x-nullable": true
-              }
+            "description": "",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "binary"
             }
           }
         ],
-        "description": "A component definition",
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "Component",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.LinkdefProperty": {
-        "type": "object",
-        "description": "Properties for linkdefs",
-        "required": [
-          "target"
+        "responses": {},
+        "tags": [
+          "crate::resources::application"
         ],
-        "properties": {
-          "target": {
-            "type": "string",
-            "description": "The target this linkdef applies to. This should be the name of an actor component"
-          },
-          "values": {
-            "type": "object",
-            "description": "Values to use for this linkdef",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "x-nullable": true
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "LinkdefProperty",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Metadata": {
-        "type": "object",
-        "description": "The metadata describing the manifest",
-        "required": [
-          "name"
+        "operationId": "create_application",
+        "consumes": [
+          "application/octet-stream"
         ],
-        "properties": {
-          "annotations": {
-            "type": "object",
-            "description": "Optional data for annotating this manifest",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "name": {
-            "type": "string",
-            "description": "The name of the manifest. This should be unique"
-          },
-          "namespace": {
-            "type": "string",
-            "description": "The namespace for the application."
-          },
-          "labels": {
-            "type": "object",
-            "description": "Optional data for labeling this manifest",
-            "additionalProperties": {
-              "type": "string"
-            }
-          }
-        },
         "x-kubernetes-group-version-kind": [
           {
             "group": "core.oam.dev",
-            "kind": "Metadata",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Properties": {
-        "description": "Properties that can be defined for a component",
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "Properties",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Specification": {
-        "type": "object",
-        "description": "A representation of an OAM specification",
-        "required": [
-          "components"
-        ],
-        "properties": {
-          "components": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/dev.oam.core.v1beta1.Component"
-            },
-            "description": "The list of components for describing an application"
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "Specification",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Spread": {
-        "type": "object",
-        "description": "Configuration for various spreading requirements",
-        "required": [
-          "name"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "The name of this spread requirement"
-          },
-          "requirements": {
-            "type": "object",
-            "description": "An arbitrary map of labels to match on for scaling requirements",
-            "additionalProperties": {
-              "type": "string"
-            }
-          },
-          "weight": {
-            "type": "integer",
-            "description": "An optional weight for this spread. Higher weights are given more precedence",
-            "minimum": 0,
-            "x-nullable": true
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "Spread",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.SpreadScalerProperty": {
-        "type": "object",
-        "description": "Properties for spread scalers",
-        "required": [
-          "replicas"
-        ],
-        "properties": {
-          "replicas": {
-            "type": "integer",
-            "description": "Number of replicas to scale",
-            "minimum": 0
-          },
-          "spread": {
-            "type": "array",
-            "items": {
-              "$ref": "#/definitions/dev.oam.core.v1beta1.Spread"
-            },
-            "description": "Requirements for spreading throse replicas"
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "SpreadScalerProperty",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.Trait": {
-        "type": "object",
-        "required": [
-          "type",
-          "properties"
-        ],
-        "properties": {
-          "properties": {
-            "$ref": "#/definitions/dev.oam.core.v1beta1.TraitProperty"
-          },
-          "type": {
-            "type": "string",
-            "description": "The type of trait specified. This should be a unique string for the type of scaler. As we\nplan on supporting custom scalers, these traits are not enumerated"
-          }
-        },
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "Trait",
-            "version": "v1beta1"
-          }
-        ]
-      },
-      "dev.oam.core.v1beta1.TraitProperty": {
-        "description": "Properties for defining traits",
-        "x-kubernetes-group-version-kind": [
-          {
-            "group": "core.oam.dev",
-            "kind": "TraitProperty",
+            "kind": "Application",
             "version": "v1beta1"
           }
         ]
       }
     },
-    "x-components": {}
+    "/apis/core.oam.dev/v1beta1/namespaces/{namespace}/applications/{name}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {},
+        "tags": [
+          "crate::resources::application"
+        ],
+        "operationId": "delete_application",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "core.oam.dev",
+            "kind": "Application",
+            "version": "v1beta1"
+          }
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {},
+        "tags": [
+          "crate::resources::application"
+        ],
+        "operationId": "get_application",
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "core.oam.dev",
+            "kind": "Application",
+            "version": "v1beta1"
+          }
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "namespace",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "",
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "binary"
+            }
+          }
+        ],
+        "responses": {},
+        "tags": [
+          "crate::resources::application"
+        ],
+        "operationId": "patch_application",
+        "consumes": [
+          "application/octet-stream"
+        ],
+        "x-kubernetes-group-version-kind": [
+          {
+            "group": "core.oam.dev",
+            "kind": "Application",
+            "version": "v1beta1"
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "dev.oam.core.v1beta1.ActorProperties": {
+      "properties": {
+        "image": {
+          "description": "The image reference to use",
+          "type": "string"
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "ActorProperties",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Application": {
+      "description": "An OAM manifest",
+      "properties": {
+        "apiVersion": {
+          "description": "The OAM version of the manifest",
+          "type": "string"
+        },
+        "kind": {
+          "description": "The kind or type of manifest described by the spec",
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.Metadata"
+        },
+        "spec": {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.Specification"
+        }
+      },
+      "required": [
+        "apiVersion",
+        "kind",
+        "metadata",
+        "spec"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Application",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.CapabilityConfig": {
+      "description": "Right now providers can technically use any config format they want, although most use JSON.\nThis enum takes that into account and allows either type of data to be passed",
+      "oneOf": [
+        {
+          "properties": {
+            "Json": {}
+          },
+          "required": [
+            "Json"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "Opaque": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Opaque"
+          ],
+          "type": "object"
+        }
+      ],
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "CapabilityConfig",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.CapabilityProperties": {
+      "properties": {
+        "config": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/dev.oam.core.v1beta1.CapabilityConfig"
+            }
+          ],
+          "nullable": true
+        },
+        "contract": {
+          "description": "The contract ID of this capability",
+          "type": "string"
+        },
+        "image": {
+          "description": "The image reference to use",
+          "type": "string"
+        },
+        "link_name": {
+          "description": "An optional link name to use for this capability",
+          "nullable": true,
+          "type": "string"
+        }
+      },
+      "required": [
+        "image",
+        "contract"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "CapabilityProperties",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Component": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.Properties"
+        },
+        {
+          "properties": {
+            "name": {
+              "description": "The name of this component",
+              "type": "string"
+            },
+            "traits": {
+              "description": "A list of various traits assigned to this component",
+              "items": {
+                "$ref": "#/definitions/dev.oam.core.v1beta1.Trait"
+              },
+              "nullable": true,
+              "type": "array"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "A component definition",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Component",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.LinkdefProperty": {
+      "description": "Properties for linkdefs",
+      "properties": {
+        "target": {
+          "description": "The target this linkdef applies to. This should be the name of an actor component",
+          "type": "string"
+        },
+        "values": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Values to use for this linkdef",
+          "nullable": true,
+          "type": "object"
+        }
+      },
+      "required": [
+        "target"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "LinkdefProperty",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Metadata": {
+      "description": "The metadata describing the manifest",
+      "properties": {
+        "annotations": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Optional data for annotating this manifest",
+          "type": "object"
+        },
+        "labels": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "name": {
+          "description": "The name of the manifest. This should be unique",
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "namespace",
+        "labels"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Metadata",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Policy": {
+      "description": "A policy definition",
+      "properties": {
+        "name": {
+          "description": "The name of this policy",
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "The properties for this policy",
+          "type": "object"
+        },
+        "type": {
+          "description": "The type of the policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "properties",
+        "type"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Policy",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Properties": {
+      "description": "Properties that can be defined for a component",
+      "discriminator": {
+        "propertyName": "type"
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "properties": {
+              "$ref": "#/definitions/dev.oam.core.v1beta1.ActorProperties"
+            },
+            "type": {
+              "enum": [
+                "actor"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "properties",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "properties": {
+              "$ref": "#/definitions/dev.oam.core.v1beta1.CapabilityProperties"
+            },
+            "type": {
+              "enum": [
+                "capability"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "properties",
+            "type"
+          ],
+          "type": "object"
+        }
+      ],
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Properties",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Specification": {
+      "description": "A representation of an OAM specification",
+      "properties": {
+        "components": {
+          "description": "The list of components for describing an application",
+          "items": {
+            "$ref": "#/definitions/dev.oam.core.v1beta1.Component"
+          },
+          "type": "array"
+        },
+        "policies": {
+          "description": "The list of policies describing an application. This is for providing application-wide\nsetting such as configuration for a secrets backend, how to render Kubernetes services,\netc. It can be omitted if no policies are needed for an application.",
+          "items": {
+            "$ref": "#/definitions/dev.oam.core.v1beta1.Policy"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "components"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Specification",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Spread": {
+      "description": "Configuration for various spreading requirements",
+      "properties": {
+        "name": {
+          "description": "The name of this spread requirement",
+          "type": "string"
+        },
+        "requirements": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "An arbitrary map of labels to match on for scaling requirements",
+          "type": "object"
+        },
+        "weight": {
+          "description": "An optional weight for this spread. Higher weights are given more precedence",
+          "minimum": 0,
+          "nullable": true,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Spread",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.SpreadScalerProperty": {
+      "description": "Properties for spread scalers",
+      "properties": {
+        "replicas": {
+          "description": "Number of replicas to scale",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "spread": {
+          "description": "Requirements for spreading throse replicas",
+          "items": {
+            "$ref": "#/definitions/dev.oam.core.v1beta1.Spread"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "replicas"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "SpreadScalerProperty",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.Trait": {
+      "properties": {
+        "properties": {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.TraitProperty"
+        },
+        "type": {
+          "description": "The type of trait specified. This should be a unique string for the type of scaler. As we\nplan on supporting custom scalers, these traits are not enumerated",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "properties"
+      ],
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "Trait",
+          "version": "v1beta1"
+        }
+      ]
+    },
+    "dev.oam.core.v1beta1.TraitProperty": {
+      "description": "Properties for defining traits",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.LinkdefProperty"
+        },
+        {
+          "$ref": "#/definitions/dev.oam.core.v1beta1.SpreadScalerProperty"
+        },
+        {}
+      ],
+      "x-kubernetes-group-version-kind": [
+        {
+          "group": "core.oam.dev",
+          "kind": "TraitProperty",
+          "version": "v1beta1"
+        }
+      ]
+    }
+  },
+  "x-components": {}
 }
+
 "##;
