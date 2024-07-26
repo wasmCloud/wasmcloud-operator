@@ -13,9 +13,10 @@ use kube::{
     client::Client,
     CustomResourceExt,
 };
-use opentelemetry::sdk::{
-    trace::{self, RandomIdGenerator, Sampler},
-    Resource as OTELResource,
+use opentelemetry::KeyValue;
+use opentelemetry_sdk::{
+    trace::{RandomIdGenerator, Sampler},
+    Resource,
 };
 use std::io::IsTerminal;
 use std::net::SocketAddr;
@@ -80,12 +81,12 @@ fn configure_tracing(enabled: bool) -> anyhow::Result<()> {
         .tracing()
         .with_exporter(opentelemetry_otlp::new_exporter().tonic())
         .with_trace_config(
-            trace::config()
+            opentelemetry_sdk::trace::config()
                 .with_sampler(Sampler::AlwaysOn)
                 .with_id_generator(RandomIdGenerator::default())
                 .with_max_attributes_per_span(32)
                 .with_max_events_per_span(32)
-                .with_resource(OTELResource::new(vec![opentelemetry::KeyValue::new(
+                .with_resource(Resource::new(vec![KeyValue::new(
                     "service.name",
                     "wasmcloud-operator",
                 )])),
