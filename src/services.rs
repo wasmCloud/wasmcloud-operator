@@ -618,13 +618,13 @@ fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
                 if props.namespace == "wasi"
                     && props.package == "http"
                     && props.interfaces.contains(&"incoming-handler".to_string())
+                    && props.source.is_some()
                 {
-                    for p in props.source_config.iter() {
-                        if let Some(config_props) = &p.properties {
-                            if let Some(addr) = config_props.get("address") {
-                                details.address.clone_from(addr);
-                                should_create_service = true;
-                            };
+                    let source = props.source.as_ref().unwrap();
+                    for cp in source.config.iter() {
+                        if let Some(addr) = cp.properties.as_ref().and_then(|p| p.get("address")) {
+                            details.address.clone_from(addr);
+                            should_create_service = true;
                         }
                     }
                 }

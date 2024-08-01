@@ -80,6 +80,8 @@ pub struct WasmCloudHostConfigSpec {
     pub observability: Option<ObservabilityConfiguration>,
     /// Certificates: Authorities, client certificates
     pub certificates: Option<WasmCloudHostCertificates>,
+    /// wasmCloud secrets topic prefix, must not be empty if set.
+    pub secrets_topic_prefix: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
