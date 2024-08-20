@@ -381,6 +381,14 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         })
     }
 
+    if let Some(max_linear_memory_bytes) = &config.spec.max_linear_memory_bytes {
+        wasmcloud_env.push(EnvVar {
+            name: "WASMCLOUD_MAX_LINEAR_MEMORY".to_string(),
+            value: Some(max_linear_memory_bytes.to_string()),
+            ..Default::default()
+        })
+    }
+
     let mut wasmcloud_args = configure_observability(&config.spec);
 
     let mut nats_resources: Option<k8s_openapi::api::core::v1::ResourceRequirements> = None;

@@ -82,6 +82,8 @@ pub struct WasmCloudHostConfigSpec {
     pub certificates: Option<WasmCloudHostCertificates>,
     /// wasmCloud secrets topic prefix, must not be empty if set.
     pub secrets_topic_prefix: Option<String>,
+    /// Maximum memory in bytes that components can use.
+    pub max_linear_memory_bytes: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
