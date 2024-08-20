@@ -71,6 +71,8 @@ spec:
   # Optional: Subject prefix that will be used by the host to query for wasmCloud Secrets.
   # See https://wasmcloud.com/docs/concepts/secrets for more context
   secretsTopicPrefix: "wasmcloud.secrets"
+  # Optional: The maximum amount of memory bytes that a component can allocate.
+  maxLinearMemoryBytes: 20000000
   # Optional: Additional options to control how the underlying wasmCloud hosts are scheduled in Kubernetes.
   # This includes setting resource requirements for the nats and wasmCloud host
   # containers along with any additional pot template settings.
