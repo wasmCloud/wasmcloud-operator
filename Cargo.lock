@@ -3717,7 +3717,7 @@ dependencies = [
 
 [[package]]
 name = "wasmcloud-operator"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "anyhow",
  "async-nats",
@@ -3757,7 +3757,7 @@ dependencies = [
 
 [[package]]
 name = "wasmcloud-operator-types"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "k8s-openapi",
  "kube",
