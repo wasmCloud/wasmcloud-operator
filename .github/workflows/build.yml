@@ -86,6 +86,15 @@ jobs:
             type=sha,prefix=
             type=semver,pattern={{version}}
 
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta_wolfi
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=,suffix=-wolfi
+            type=semver,pattern={{version}},suffix=-wolfi
+
       - name: Load artifacts
         uses: actions/download-artifact@v4
         with:
@@ -104,5 +113,16 @@ jobs:
           context: .
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          build-args: "BIN_PATH=artifacts/wasmcloud-operator"
+
+      - name: Build and push Docker image (wolfi)
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          context: .
+          file: './Dockerfile.wolfi'
+          tags: ${{ steps.meta_wolfi.outputs.tags }}
+          labels: ${{ steps.meta_wolfi.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           build-args: "BIN_PATH=artifacts/wasmcloud-operator"
