@@ -28,6 +28,13 @@ use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args = std::env::args().collect::<Vec<_>>();
+    if args.iter().any(|arg| arg == "-V" || arg == "--version") {
+        let version = version();
+        println!("{} {version}", env!("CARGO_BIN_NAME"));
+        std::process::exit(0);
+    }
+
     let tracing_enabled = std::env::var("OTEL_EXPORTER_OTLP_ENDPOINT").is_ok();
     configure_tracing(tracing_enabled).map_err(|e| {
         error!("Failed to configure tracing: {}", e);
@@ -191,4 +198,8 @@ async fn install_crd(client: &Client) -> anyhow::Result<()> {
     };
 
     Ok(())
+}
+
+fn version() -> &'static str {
+    option_env!("CARGO_VERSION_INFO").unwrap_or(env!("CARGO_PKG_VERSION"))
 }
