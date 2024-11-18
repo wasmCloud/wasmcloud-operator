@@ -3,6 +3,11 @@ name = "wasmcloud-operator-types"
 version = "0.1.8"
 edition = "2021"
 
+[package.metadata.cargo-machete]
+# NOTE: This exists because kube-derive needs it, and for reasons I don't
+# fully understand, it's not coming through kube-derive's own depedendencies.
+ignored = ["serde_json"]
+
 [dependencies]
 k8s-openapi = { workspace = true }
 kube = { workspace = true, features = ["derive"] }
