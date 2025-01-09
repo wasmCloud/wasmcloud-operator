@@ -13,6 +13,7 @@ use k8s_openapi::api::core::v1::{
 };
 use k8s_openapi::api::rbac::v1::{PolicyRule, Role, RoleBinding, RoleRef, Subject};
 use k8s_openapi::apimachinery::pkg::apis::meta::v1::LabelSelector;
+use k8s_openapi::DeepMerge;
 use kube::{
     api::{Api, ObjectMeta, Patch, PatchParams},
     client::Client as KubeClient,
@@ -546,7 +547,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         });
     }
 
-    let containers = vec![
+    let mut containers = vec![
         Container {
             name: "nats-leaf".to_string(),
             image: Some(leaf_image),
@@ -585,6 +586,22 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
             ..Default::default()
         },
     ];
+
+    if let Some(cta) = &config
+        .spec
+        .scheduling_options
+        .as_ref()
+        .and_then(|so| so.container_template_additions.clone())
+    {
+        if let Some(mut nats_container) = cta.nats.clone() {
+            nats_container.merge_from(containers[0].clone());
+            containers[0] = nats_container;
+        }
+        if let Some(mut wasmcloud_container) = cta.wasmcloud.clone() {
+            wasmcloud_container.merge_from(containers[1].clone());
+            containers[1] = wasmcloud_container;
+        }
+    }
 
     let service_account = config.name_any();
     let mut template = PodTemplateSpec {
@@ -830,35 +847,37 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
         ];
     }
 
-    if let Some(scheduling_options) = &config.spec.scheduling_options {
-        if scheduling_options.daemonset {
-            let mut spec = daemonset_spec(config, ctx.clone()).await?;
-            spec.template.spec.as_mut().unwrap().containers[1]
-                .env
-                .as_mut()
-                .unwrap()
-                .append(&mut env_vars);
-            let ds = DaemonSet {
-                metadata: ObjectMeta {
-                    name: Some(config.name_any()),
-                    namespace: Some(config.namespace().unwrap()),
-                    owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
-                    labels: Some(common_labels()),
-                    ..Default::default()
-                },
-                spec: Some(spec),
+    if config
+        .spec
+        .scheduling_options
+        .as_ref()
+        .is_some_and(|so| so.daemonset)
+    {
+        let mut spec = daemonset_spec(config, ctx.clone()).await?;
+        spec.template.spec.as_mut().unwrap().containers[1]
+            .env
+            .as_mut()
+            .unwrap()
+            .append(&mut env_vars);
+        let ds = DaemonSet {
+            metadata: ObjectMeta {
+                name: Some(config.name_any()),
+                namespace: Some(config.namespace().unwrap()),
+                owner_references: Some(vec![config.controller_owner_ref(&()).unwrap()]),
+                labels: Some(common_labels()),
                 ..Default::default()
-            };
+            },
+            spec: Some(spec),
+            ..Default::default()
+        };
 
-            let api =
-                Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
-            api.patch(
-                &config.name_any(),
-                &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
-                &Patch::Apply(ds),
-            )
-            .await?;
-        }
+        let api = Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
+        api.patch(
+            &config.name_any(),
+            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+            &Patch::Apply(ds),
+        )
+        .await?;
     } else {
         let mut spec = deployment_spec(config, ctx.clone()).await?;
         spec.template.spec.as_mut().unwrap().containers[1]

@@ -1,4 +1,4 @@
-use k8s_openapi::api::core::v1::{PodSpec, ResourceRequirements, Volume};
+use k8s_openapi::api::core::v1::{Container, PodSpec, ResourceRequirements, Volume};
 use kube::CustomResource;
 use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
@@ -104,9 +104,23 @@ pub struct KubernetesSchedulingOptions {
     /// https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ for valid
     /// values to use here.
     pub resources: Option<WasmCloudHostConfigResources>,
-    #[schemars(schema_with = "pod_schema")]
     /// Any other pod template spec options to set for the underlying wasmCloud host pods.
+    #[schemars(schema_with = "pod_schema")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pod_template_additions: Option<PodSpec>,
+    /// Allow for customization of either the wasmcloud or nats leaf container inside of the wasmCloud host pod.
+    pub container_template_additions: Option<ContainerTemplateAdditions>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ContainerTemplateAdditions {
+    #[schemars(schema_with = "container_schema")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nats: Option<Container>,
+    #[schemars(schema_with = "container_schema")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wasmcloud: Option<Container>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema)]
@@ -161,6 +175,24 @@ fn pod_schema(_gen: &mut SchemaGenerator) -> Schema {
         .into_generator();
     let mut val = gen.into_root_schema_for::<PodSpec>();
     // Drop `containers` as a required field, along with any others.
+    val.schema.object.as_mut().unwrap().required = BTreeSet::new();
+    val.schema.into()
+}
+
+/// This is a workaround for the fact that we can't override the Container schema to make name
+/// an optional field. It generates the OpenAPI schema for the Container type the same way that
+/// kube.rs does while dropping any required fields.
+fn container_schema(_gen: &mut SchemaGenerator) -> Schema {
+    let gen = schemars::gen::SchemaSettings::openapi3()
+        .with(|s| {
+            s.inline_subschemas = true;
+            s.meta_schema = None;
+        })
+        .with_visitor(kube::core::schema::StructuralSchemaRewriter)
+        .into_generator();
+    let mut val = gen.into_root_schema_for::<Container>();
+    // Drop `name` as a required field as it will be filled in from container
+    // definition coming the controller that this configuration gets merged into.
     val.schema.object.as_mut().unwrap().required = BTreeSet::new();
     val.schema.into()
 }
