@@ -19,9 +19,9 @@ spec:
         image: ghcr.io/wasmcloud/components/http-hello-world-rust:0.1.0
       traits:
         # Govern the spread/scheduling of the component
-        - type: spreadscaler
+        - type: daemonscaler
           properties:
-            replicas: 1
+            replicas: 100
 
     # Add a capability provider that enables HTTP access
     - name: httpserver
@@ -30,9 +30,11 @@ spec:
         image: ghcr.io/wasmcloud/http-server:0.21.0
       traits:
         # Establish a unidirectional link from this http server provider (the "source")
-        # to the `http-component` component (the "target") so the component can handle incoming HTTP requests,
+        # to the `http-component` component (the "target") so the component can handle incoming HTTP requests.
         #
-        # The source (this provider) is configured such that the HTTP server listens on 127.0.0.1:8080
+        # The source (this provider) is configured such that the HTTP server listens on 0.0.0.0:8000. 
+        # When running the application on Kubernetes with the wasmCloud operator, you can change the 
+        # port but the address must be 0.0.0.0.
         - type: link
           properties:
             target: http-component
@@ -42,7 +44,10 @@ spec:
             source_config:
               - name: default-http
                 properties:
-                  address: 127.0.0.1:8080
+                  address: 0.0.0.0:8000
+        # When running the application on Kubernetes with the wasmCloud operator, 
+        # the operator automatically creates a Kubernetes service for applications that use 
+        # the httpserver provider with a daemonscaler.
         - type: daemonscaler
           properties:
             replicas: 1
