@@ -43,10 +43,15 @@ Common labels
 {{- define "wasmcloud-operator.labels" -}}
 helm.sh/chart: {{ include "wasmcloud-operator.chart" . }}
 {{ include "wasmcloud-operator.selectorLabels" . }}
+app.kubernetes.io/component: operator
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/part-of: wasmcloud-operator
+{{- with .Values.additionalLabels }}
+{{ . | toYaml }}
+{{- end }}
 {{- end }}
 
 {{/*
