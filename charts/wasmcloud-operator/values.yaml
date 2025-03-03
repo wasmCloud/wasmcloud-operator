@@ -12,6 +12,9 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+additionalLabels: {}
+  # app: wasmcloud-operator
+
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
