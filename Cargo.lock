@@ -307,6 +307,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ba43ea6f343b788c8764558649e08df62f86c6ef251fdaeb1ffd010a9ae50a2"
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3404,14 +3410,14 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "wadm"
-version = "0.13.0"
+version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40216dc6034c5e71bf773cea191e13581def996d21acf99fcc9347cc254b0490"
+checksum = "316c3b838966e6147e6296ca019742423b0e6bc4e0118b552a12495cbfce832f"
 dependencies = [
  "anyhow",
  "async-nats",
  "async-trait",
- "base64 0.21.4",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "cloudevents-sdk",
