@@ -96,7 +96,7 @@ jobs:
             type=semver,pattern={{version}},suffix=-wolfi
 
       - name: Load artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: artifacts
 
