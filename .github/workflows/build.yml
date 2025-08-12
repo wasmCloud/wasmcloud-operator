@@ -16,7 +16,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Lint
         run: |
           cargo clippy -- --no-deps
@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startswith(github.ref, 'refs/tags/v') # Only run on tag push
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: goto-bus-stop/setup-zig@v2
 
       - name: Add musl targets
@@ -62,7 +62,7 @@ jobs:
       packages: write
     if: startswith(github.ref, 'refs/tags/v') # Only run on tag push
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
