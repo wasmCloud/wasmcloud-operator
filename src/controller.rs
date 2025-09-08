@@ -417,7 +417,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
     let mut volumes = vec![Volume {
         name: "nats-config".to_string(),
         config_map: Some(ConfigMapVolumeSource {
-            name: Some(config.name_any()),
+            name: config.name_any(),
             ..Default::default()
         }),
         ..Default::default()
@@ -485,14 +485,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
 
             // configmaps
             if let Some(configmap_ref) = &authority.config_map {
-                let configmap_name = match &configmap_ref.name {
-                    Some(s) => s,
-                    None => {
-                        return Err(Error::CertificateError(format!(
-                            "Missing configmap name for authority '{authority_name}'"
-                        )))
-                    }
-                };
+                let configmap_name = &configmap_ref.name;
                 items = discover_configmap_certificates(
                     &config.namespace().unwrap_or_default(),
                     configmap_name,
@@ -507,7 +500,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
                 volumes.push(Volume {
                     name: volume_name.clone(),
                     config_map: Some(ConfigMapVolumeSource {
-                        name: Some(configmap_name.to_string()),
+                        name: configmap_name.to_string(),
                         ..Default::default()
                     }),
                     ..Default::default()

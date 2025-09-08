@@ -510,8 +510,8 @@ pub async fn create_or_update_service(
                     endpoints: ips
                         .iter()
                         .filter_map(|ip| {
-                            ip.ip.as_ref().map(|i| Endpoint {
-                                addresses: vec![i.clone()],
+                            Some(Endpoint {
+                                addresses: vec![ip.ip.clone()],
                                 conditions: Some(EndpointConditions {
                                     ready: Some(true),
                                     serving: Some(true),
