@@ -18,7 +18,7 @@ fi
 # https://github.com/kubernetes-sigs/kind/issues/2875
 # https://github.com/containerd/containerd/blob/main/docs/cri/config.md#registry-configuration
 # See: https://github.com/containerd/containerd/blob/main/docs/hosts.md
-cat <<EOF | kind create cluster --image kindest/node:v1.29.4 --config=-
+cat <<EOF | kind create cluster -n wasmcloud-operator-test --image kindest/node:v1.34.0 --config=-
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 containerdConfigPatches:
@@ -36,7 +36,7 @@ EOF
 # We want a consistent name that works from both ends, so we tell containerd to
 # alias localhost:${reg_port} to the registry container when pulling images
 REGISTRY_DIR="/etc/containerd/certs.d/localhost:${reg_port}"
-for node in $(kind get nodes); do
+for node in $(kind get nodes -n wasmcloud-operator-test); do
   docker exec "${node}" mkdir -p "${REGISTRY_DIR}"
   cat <<EOF | docker exec -i "${node}" cp /dev/stdin "${REGISTRY_DIR}/hosts.toml"
 [host."http://${reg_name}:5000"]
@@ -62,3 +62,15 @@ data:
     host: "localhost:${reg_port}"
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
+
+# 6. Wait for cluster to come up
+sleep 5s
+kubectl -n kube-system wait --for=condition=Ready --timeout=60s pod -l "component=kube-apiserver"
+
+# 7. Install NATS
+helm repo add nats https://nats-io.github.io/k8s/helm/charts/
+helm upgrade --install -f ./nats-values.yaml nats nats/nats
+kubectl wait --for=condition=Ready --timeout=600s pod -l "app.kubernetes.io/name=nats"
+
+# 8. Install WADM
+helm install wadm -f ./wadm-values.yaml --version 0.2.0 oci://ghcr.io/wasmcloud/charts/wadm

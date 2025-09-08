@@ -1,12 +1,20 @@
 # syntax=docker/dockerfile:1
-FROM rust:1.77-bookworm as builder
+FROM ghcr.io/rust-cross/cargo-zigbuild:0.20.1 AS builder
+
+ARG TARGETARCH=x86_64
+
+WORKDIR /tmp
+
+RUN rustup target add ${TARGETARCH}-unknown-linux-musl
 
 WORKDIR /app
+
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release && cp target/release/wasmcloud-operator .
+    cargo zigbuild --release --target x86_64-unknown-linux-musl --locked && \
+    cp target/${TARGETARCH}-unknown-linux-musl/release/wasmcloud-operator .
 
-FROM gcr.io/distroless/cc-debian12
+FROM scratch
 COPY --from=builder /app/wasmcloud-operator /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/wasmcloud-operator"]
