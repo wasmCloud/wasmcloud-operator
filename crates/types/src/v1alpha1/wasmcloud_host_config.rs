@@ -1,8 +1,9 @@
 use k8s_openapi::api::core::v1::{Container, PodSpec, ResourceRequirements, Volume};
 use kube::CustomResource;
-use schemars::{gen::SchemaGenerator, schema::Schema, JsonSchema};
+use schemars::{generate::SchemaGenerator, Schema, JsonSchema};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use serde_json::json;
+use std::collections::BTreeMap;
 
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
 #[cfg_attr(test, derive(Default))]
@@ -166,35 +167,35 @@ pub struct OtelSignalConfiguration {
 /// an optional field. It generates the OpenAPI schema for the PodSpec type the same way that
 /// kube.rs does while dropping any required fields.
 fn pod_schema(_gen: &mut SchemaGenerator) -> Schema {
-    let gen = schemars::gen::SchemaSettings::openapi3()
+    let gen = schemars::generate::SchemaSettings::openapi3()
         .with(|s| {
             s.inline_subschemas = true;
             s.meta_schema = None;
         })
-        .with_visitor(kube::core::schema::StructuralSchemaRewriter)
+        .with_transform(kube::core::schema::StructuralSchemaRewriter)
         .into_generator();
     let mut val = gen.into_root_schema_for::<PodSpec>();
     // Drop `containers` as a required field, along with any others.
-    val.schema.object.as_mut().unwrap().required = BTreeSet::new();
-    val.schema.into()
+    val.as_object_mut().unwrap()["required"] = json!(Vec::<String>::new());
+    val
 }
 
 /// This is a workaround for the fact that we can't override the Container schema to make name
 /// an optional field. It generates the OpenAPI schema for the Container type the same way that
 /// kube.rs does while dropping any required fields.
 fn container_schema(_gen: &mut SchemaGenerator) -> Schema {
-    let gen = schemars::gen::SchemaSettings::openapi3()
+    let gen = schemars::generate::SchemaSettings::openapi3()
         .with(|s| {
             s.inline_subschemas = true;
             s.meta_schema = None;
         })
-        .with_visitor(kube::core::schema::StructuralSchemaRewriter)
+        .with_transform(kube::core::schema::StructuralSchemaRewriter)
         .into_generator();
     let mut val = gen.into_root_schema_for::<Container>();
     // Drop `name` as a required field as it will be filled in from container
     // definition coming the controller that this configuration gets merged into.
-    val.schema.object.as_mut().unwrap().required = BTreeSet::new();
-    val.schema.into()
+    val.as_object_mut().unwrap()["required"] = json!(Vec::<String>::new());
+    val
 }
 
 fn default_host_replicas() -> u32 {

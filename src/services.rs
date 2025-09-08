@@ -510,8 +510,8 @@ pub async fn create_or_update_service(
                     endpoints: ips
                         .iter()
                         .filter_map(|ip| {
-                            ip.ip.as_ref().map(|i| Endpoint {
-                                addresses: vec![i.clone()],
+                            Some(Endpoint {
+                                addresses: vec![ip.ip.clone()],
                                 conditions: Some(EndpointConditions {
                                     ready: Some(true),
                                     serving: Some(true),
@@ -568,7 +568,9 @@ fn http_server_component(manifest: &Manifest) -> Option<HttpServerComponent> {
             if let Properties::Capability { properties } = &c.properties {
                 if properties
                     .image
-                    .starts_with("ghcr.io/wasmcloud/http-server")
+                    .as_ref()
+                    .map(|i| i.starts_with("ghcr.io/wasmcloud/http-server"))
+                    .unwrap_or(false)
                 {
                     return true;
                 }
