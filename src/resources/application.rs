@@ -224,11 +224,13 @@ impl From<Vec<ModelSummary>> for ApplicationTable {
                     i.name,
                     i.deployed_version.unwrap_or("N/A".to_string()),
                     i.version,
-                    match i.status {
+                    match i.detailed_status.info.status_type {
                         StatusType::Undeployed => "Undeployed".to_string(),
                         StatusType::Reconciling => "Reconciling".to_string(),
                         StatusType::Deployed => "Deployed".to_string(),
                         StatusType::Failed => "Failed".to_string(),
+                        StatusType::Waiting => "Waiting".to_string(),
+                        StatusType::Unhealthy => "Unhealthy".to_string(),
                     },
                 ],
             })
@@ -290,6 +292,8 @@ impl CombinedManifest {
             StatusType::Reconciling => "Reconciling",
             StatusType::Deployed => "Deployed",
             StatusType::Failed => "Failed",
+            StatusType::Waiting => "Waiting",
+            StatusType::Unhealthy => "Unhealthy",
         }
         .to_string()
     }
@@ -569,6 +573,8 @@ pub async fn get_application(
                 StatusType::Reconciling => "Reconciling",
                 StatusType::Deployed => "Deployed",
                 StatusType::Failed => "Failed",
+                StatusType::Waiting => "Waiting",
+                StatusType::Unhealthy => "Unhealthy",
             };
             manifest_value["status"] = json!({
                 "phase": phase,

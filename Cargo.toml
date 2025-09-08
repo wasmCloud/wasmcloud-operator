@@ -57,7 +57,7 @@ wadm-types = { workspace = true }
 wasmcloud-operator-types = { workspace = true }
 
 [workspace.dependencies]
-async-nats = "0.33"
+async-nats = "0.39"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
@@ -65,7 +65,7 @@ config = { version = "0.14", default-features = false, features = [
   "convert-case",
   "async",
 ] }
-cloudevents-sdk = "0.7"
+cloudevents-sdk = "0.8"
 ctrlc = "3"
 futures = "0.3"
 handlebars = "5.1"
@@ -94,9 +94,9 @@ tracing-opentelemetry = "0.22"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 utoipa = { version = "4.2", features = ["axum_extras"] }
 uuid = { version = "1", features = ["v5"] }
-wadm = "0.13.1"
-wadm-client = "0.2.0"
-wadm-types = "0.2.0"
+wadm = "0.21.0"
+wadm-client = "0.10.0"
+wadm-types = "0.8.3"
 wasmcloud-operator-types = { version = "*", path = "./crates/types" }
 
 [workspace]
