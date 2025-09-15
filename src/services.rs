@@ -438,7 +438,7 @@ pub async fn create_or_update_service(
         let svc = api
             .patch(
                 params.name.as_str(),
-                &PatchParams::apply(SERVICE_FINALIZER),
+                &PatchParams::apply(SERVICE_FINALIZER).force(),
                 &Patch::Apply(svc),
             )
             .await
@@ -536,7 +536,7 @@ pub async fn create_or_update_service(
                 endpoints
                     .patch(
                         params.name.as_str(),
-                        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+                        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
                         &Patch::Apply(endpoint_slice),
                     )
                     .await

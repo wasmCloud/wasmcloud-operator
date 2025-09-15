@@ -874,7 +874,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
         let api = Api::<DaemonSet>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
         api.patch(
             &config.name_any(),
-            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
             &Patch::Apply(ds),
         )
         .await?;
@@ -900,7 +900,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
         let api = Api::<Deployment>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
         api.patch(
             &config.name_any(),
-            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+            &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
             &Patch::Apply(deployment),
         )
         .await?;
@@ -942,7 +942,7 @@ async fn configure_service(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> R
     let api = Api::<Service>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
     api.patch(
         &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
         &Patch::Apply(svc),
     )
     .await?;
@@ -963,7 +963,7 @@ async fn configure_auth(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resu
     let api = Api::<ServiceAccount>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
     api.patch(
         &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
         &Patch::Apply(svc_account),
     )
     .await?;
@@ -993,7 +993,7 @@ async fn configure_auth(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resu
     let api = Api::<Role>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
     api.patch(
         &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
         &Patch::Apply(role),
     )
     .await?;
@@ -1020,7 +1020,7 @@ async fn configure_auth(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resu
     let api = Api::<RoleBinding>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
     api.patch(
         &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
         &Patch::Apply(role_binding),
     )
     .await?;
@@ -1066,7 +1066,7 @@ leafnodes {
     let api = Api::<ConfigMap>::namespaced(ctx.client.clone(), &config.namespace().unwrap());
     api.patch(
         &config.name_any(),
-        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER),
+        &PatchParams::apply(CLUSTER_CONFIG_FINALIZER).force(),
         &Patch::Apply(cm),
     )
     .await?;
