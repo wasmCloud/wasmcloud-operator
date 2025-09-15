@@ -212,9 +212,61 @@ data:
 
 ## Testing
 
-- Make sure you have a Kubernetes cluster running locally. Some good options
-  include [Kind](https://kind.sigs.k8s.io/) or Docker Desktop.
-- `RUST_LOG=info cargo run`
+### KinD
+
+Make sure you have `kind`, `kubectl`, and `helm` installed. Then you can run `make setup` to create
+a KinD cluster with NATS and wadm installed.
+
+### Deploy Local Code
+
+Once KinD is set up, run the following:
+
+```sh
+# build a docker image from the current code
+make build-local-dev-image
+# push the image to a registry available to kind
+make push-local-dev-image
+# deploy the operator using the pushed image
+make deploy-local-dev-image
+```
+
+### Deploying Test Custom Resources
+
+You can deploy custom resources to test the operator using the following commands:
+
+```sh
+# deploy a host configuration
+kubectl apply -f hack/wasmcloud-hostconfig-sample.yaml
+# once the hosts are available, deploy a sample application
+kubectl apply -f https://raw.githubusercontent.com/wasmCloud/wasmcloud-operator/main/examples/quickstart/hello-world-application.yaml
+```
+
+### Update the Image
+
+After performing local changes to the code, you can update the operator running in the KinD cluster
+using:
+
+```sh
+# re-build a docker image from the current code
+make build-local-dev-image
+# re-push the image to a registry available to kind
+make push-local-dev-image
+# update the existing deployment with the new image
+make update-local-dev-image
+```
+
+### Local Deployment of the Operator
+
+You can locally run the operator outside any Kubernetes cluster using:
+
+```sh
+RUST_LOG=info cargo run --bin wasmcloud-operator
+```
+
+> Note that the operator will try to connect to NATS using the configured URI from the
+> `WasmCloudHostConfig` resources. Since this is likely a DNS entry only resolvable within the
+> Kuberntees cluster, you will need to ensure traffic is correctly routed to NATS in order for this
+> to work (e.g. using an entry in your `/etc/hosts` and a port-forward to the NATS service.
 
 ## Types crate
 

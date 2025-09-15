@@ -1,0 +1,13 @@
+config:
+  cluster:
+    enabled: true
+    replicas: 3
+  leafnodes:
+    enabled: true
+  jetstream:
+    enabled: true
+    fileStore:
+      pvc:
+        size: 10Gi
+    merge:
+      domain: default
