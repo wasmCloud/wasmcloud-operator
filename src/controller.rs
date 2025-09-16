@@ -32,7 +32,7 @@ use std::sync::Arc;
 use tokio::{sync::RwLock, time::Duration};
 use tracing::{debug, info, warn};
 use wasmcloud_operator_types::v1alpha1::{
-    AppStatus, WasmCloudHostConfig, WasmCloudHostConfigSpec, WasmCloudHostConfigStatus,
+    AppStatus, WasmCloudHostConfig, WasmCloudHostConfigSpec, WasmCloudHostConfigStatus, WasmCloudHostStatus,
 };
 
 pub static CLUSTER_CONFIG_FINALIZER: &str = "operator.k8s.wasmcloud.dev/wasmcloud-host-config";
@@ -147,10 +147,10 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         return Err(e);
     };
 
-    if let Err(e) = configure_hosts(&cfg, ctx.clone()).await {
+    let host_status = configure_hosts(&cfg, ctx.clone()).await.map_err(|e| {
         warn!("Failed to configure deployment: {}", e);
-        return Err(e);
-    };
+        e
+    })?;
 
     if let Err(e) = configure_service(&cfg, ctx.clone()).await {
         warn!("Failed to configure service: {}", e);
@@ -179,6 +179,7 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
         .collect::<Vec<AppStatus>>();
     debug!(app_names=?app_names, "Found apps");
     cfg.status = Some(WasmCloudHostConfigStatus {
+        hosts: host_status,
         apps: app_names.clone(),
         app_count: app_names.len() as u32,
     });
@@ -780,7 +781,7 @@ async fn daemonset_spec(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resu
     })
 }
 
-async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<()> {
+async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<WasmCloudHostStatus> {
     let mut env_vars = vec![];
     if let Some(registry_credentials) = &config.spec.registry_credentials_secret {
         let secrets_client =
@@ -847,7 +848,7 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
         ];
     }
 
-    if config
+    let status = if config
         .spec
         .scheduling_options
         .as_ref()
@@ -878,6 +879,13 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
             &Patch::Apply(ds),
         )
         .await?;
+
+        let ds_status = api.get_status(&config.name_any()).await?.status.unwrap_or_default();
+        WasmCloudHostStatus {
+            replicas: Some(ds_status.desired_number_scheduled),
+            available_replicas: ds_status.number_available,
+            updated_replicas: ds_status.updated_number_scheduled,
+        }
     } else {
         let mut spec = deployment_spec(config, ctx.clone()).await?;
         spec.template.spec.as_mut().unwrap().containers[1]
@@ -904,9 +912,16 @@ async fn configure_hosts(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Res
             &Patch::Apply(deployment),
         )
         .await?;
+
+        let deploy_status = api.get_status(&config.name_any()).await?.status.unwrap_or_default();
+        WasmCloudHostStatus {
+            replicas: deploy_status.replicas,
+            available_replicas: deploy_status.available_replicas,
+            updated_replicas: deploy_status.updated_replicas,
+        }
     };
 
-    Ok(())
+    Ok(status)
 }
 
 async fn configure_service(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result<()> {

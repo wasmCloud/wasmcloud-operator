@@ -72,6 +72,13 @@ rules:
       - patch
       - update
   - apiGroups:
+      - apps
+    resources:
+      - deployments/status
+      - daemonsets/status
+    verbs:
+      - get
+  - apiGroups:
       - rbac.authorization.k8s.io
     resources:
       - rolebindings
