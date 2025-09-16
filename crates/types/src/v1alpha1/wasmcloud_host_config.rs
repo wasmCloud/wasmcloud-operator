@@ -238,8 +238,16 @@ pub struct WasmCloudHostConfigResources {
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
 pub struct WasmCloudHostConfigStatus {
+    pub hosts: WasmCloudHostStatus,
     pub apps: Vec<AppStatus>,
     pub app_count: u32,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, JsonSchema, Default)]
+pub struct WasmCloudHostStatus {
+    pub available_replicas: Option<i32>,
+    pub updated_replicas: Option<i32>,
+    pub replicas: Option<i32>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, JsonSchema)]
