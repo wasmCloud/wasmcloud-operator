@@ -24,7 +24,7 @@ use std::time::Duration;
 use tracing::{error, info};
 use tracing_subscriber::layer::SubscriberExt;
 
-use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
+use wadm_operator_types::v1alpha1::WasmCloudHostConfig;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
     info!("Starting operator");
 
     let cfg = Config::builder()
-        .add_source(config::Environment::with_prefix("WASMCLOUD_OPERATOR"))
+        .add_source(config::Environment::with_prefix("WADM_OPERATOR"))
         .build()
         .map_err(|e| anyhow!("Failed to build config: {}", e))?;
     let config: OperatorConfig = cfg
@@ -95,7 +95,7 @@ fn configure_tracing(enabled: bool) -> anyhow::Result<()> {
                 .with_max_events_per_span(32)
                 .with_resource(Resource::new(vec![KeyValue::new(
                     "service.name",
-                    "wasmcloud-operator",
+                    "wadm-operator",
                 )])),
         )
         .install_simple()?;
@@ -165,7 +165,7 @@ async fn install_crd(client: &Client) -> anyhow::Result<()> {
             version_priority: 100,
             version: Some("v1beta1".to_string()),
             service: Some(ServiceReference {
-                name: Some("wasmcloud-operator".to_string()),
+                name: Some("wadm-operator".to_string()),
                 namespace: Some(namespace),
                 port: Some(8443),
             }),

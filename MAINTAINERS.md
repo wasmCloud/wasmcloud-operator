@@ -1,6 +1,6 @@
 # MAINTAINERS
 
-The following individuals are responsible for reviewing code, managing issues, and ensuring the overall quality of `wasmcloud-operator`.
+The following individuals are responsible for reviewing code, managing issues, and ensuring the overall quality of `wadm-operator`.
 
 ## @wasmCloud/operator-maintainers
 

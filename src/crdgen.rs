@@ -1,5 +1,5 @@
 use kube::CustomResourceExt;
-use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
+use wadm_operator_types::v1alpha1::WasmCloudHostConfig;
 
 fn main() {
     print!(

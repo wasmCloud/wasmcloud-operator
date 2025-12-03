@@ -3450,6 +3450,57 @@ dependencies = [
 ]
 
 [[package]]
+name = "wadm-operator"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "axum",
+ "axum-server",
+ "cloudevents-sdk",
+ "config",
+ "ctrlc",
+ "futures",
+ "handlebars",
+ "json-patch",
+ "k8s-openapi",
+ "kube",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "rcgen",
+ "schemars",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "utoipa",
+ "uuid",
+ "wadm",
+ "wadm-client",
+ "wadm-operator-types",
+ "wadm-types",
+]
+
+[[package]]
+name = "wadm-operator-types"
+version = "0.1.9"
+dependencies = [
+ "k8s-openapi",
+ "kube",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "wadm-types"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3693,57 +3744,6 @@ dependencies = [
  "wascap 0.13.0",
  "wrpc-transport",
  "wrpc-transport-nats",
-]
-
-[[package]]
-name = "wasmcloud-operator"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "async-nats",
- "axum",
- "axum-server",
- "cloudevents-sdk",
- "config",
- "ctrlc",
- "futures",
- "handlebars",
- "json-patch",
- "k8s-openapi",
- "kube",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "rcgen",
- "schemars",
- "secrecy",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror",
- "time",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "utoipa",
- "uuid",
- "wadm",
- "wadm-client",
- "wadm-types",
- "wasmcloud-operator-types",
-]
-
-[[package]]
-name = "wasmcloud-operator-types"
-version = "0.1.9"
-dependencies = [
- "k8s-openapi",
- "kube",
- "schemars",
- "serde",
- "serde_json",
 ]
 
 [[package]]

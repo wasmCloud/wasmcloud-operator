@@ -1,6 +1,6 @@
 apiVersion: v2
-name: wasmcloud-operator
-description: A Helm chart for deploying the wasmcloud-operator on Kubernetes
+name: wadm-operator
+description: A Helm chart for deploying the wadm-operator on Kubernetes
 
 type: application
 

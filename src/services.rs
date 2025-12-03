@@ -28,18 +28,18 @@ use tracing::{debug, error, warn};
 use wadm::events::{Event, ManifestPublished, ManifestUnpublished};
 use wadm_client::Client as WadmClient;
 use wadm_types::{api::ModelSummary, Component, Manifest, Properties, Trait, TraitProperty};
-use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
+use wadm_operator_types::v1alpha1::WasmCloudHostConfig;
 
 use crate::controller::{
     common_labels, CLUSTER_CONFIG_FINALIZER, SERVICE_FINALIZER,
     WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX, WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT,
 };
 
-const CONSUMER_PREFIX: &str = "wasmcloud_operator_service";
+const CONSUMER_PREFIX: &str = "wadm_operator_service";
 // This should probably be exposed by wadm somewhere
 const WADM_EVENT_STREAM_NAME: &str = "wadm_events";
-const OPERATOR_STREAM_NAME: &str = "wasmcloud_operator_events";
-const OPERATOR_STREAM_SUBJECT: &str = "wasmcloud_operator_events.*.>";
+const OPERATOR_STREAM_NAME: &str = "wadm_operator_events";
+const OPERATOR_STREAM_SUBJECT: &str = "wadm_operator_events.*.>";
 
 /// Commands that can be sent to the watcher to trigger an update or removal of a service.
 #[derive(Clone, Debug)]
@@ -312,7 +312,7 @@ impl ServiceWatcher {
             .get_or_create_stream(StreamConfig {
                 name: OPERATOR_STREAM_NAME.to_string(),
                 description: Some(
-                    "Stream for wadm events consumed by the wasmCloud K8s Operator".to_string(),
+                    "Stream for wadm events consumed by the wadm K8s Operator".to_string(),
                 ),
                 max_age: wadm::DEFAULT_EXPIRY_TIME,
                 retention: RetentionPolicy::WorkQueue,
@@ -337,7 +337,7 @@ impl ServiceWatcher {
             consumer_name.as_str(),
             Config {
                 durable_name: Some(consumer_name.clone()),
-                description: Some("Consumer created by the wasmCloud K8s Operator to watch for new service endpoints in wadm manifests".to_string()),
+                description: Some("Consumer created by the wadm K8s Operator to watch for new service endpoints in wadm manifests".to_string()),
                 ack_policy: jetstream::consumer::AckPolicy::Explicit,
                 ack_wait: std::time::Duration::from_secs(2),
                 max_deliver: 3,

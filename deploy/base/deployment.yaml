@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: wasmcloud-operator
-  name: wasmcloud-operator
+    app: wadm-operator
+  name: wadm-operator
 spec:
   selector:
     matchLabels:
-      app: wasmcloud-operator
+      app: wadm-operator
   template:
     metadata:
       labels:
-        app: wasmcloud-operator
+        app: wadm-operator
     spec:
-      serviceAccountName: wasmcloud-operator
+      serviceAccountName: wadm-operator
       containers:
-        - image: ghcr.io/wasmcloud/wasmcloud-operator:0.5.0
+        - image: ghcr.io/wasmcloud/wadm-operator:0.5.0
           imagePullPolicy: Always
-          name: wasmcloud-operator
+          name: wadm-operator
           ports:
             - containerPort: 8443
               name: https
@@ -33,14 +33,14 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: wasmcloud-operator
+  name: wadm-operator
   labels:
-    app: wasmcloud-operator
+    app: wadm-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: wasmcloud-operator
+  name: wadm-operator
 rules:
   - apiGroups:
       - ""
@@ -127,21 +127,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: wasmcloud-operator
+  name: wadm-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: wasmcloud-operator
+  name: wadm-operator
 subjects:
   - apiGroup: ""
     kind: ServiceAccount
-    name: wasmcloud-operator
+    name: wadm-operator
     namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: wasmcloud-operator-delegator
+  name: wadm-operator-delegator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -149,15 +149,15 @@ roleRef:
 subjects:
   - apiGroup: ""
     kind: ServiceAccount
-    name: wasmcloud-operator
+    name: wadm-operator
     namespace: default
 ---
 apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app: wasmcloud-operator
-  name: wasmcloud-operator
+    app: wadm-operator
+  name: wadm-operator
 spec:
   ports:
     - name: https
@@ -165,5 +165,5 @@ spec:
       protocol: TCP
       targetPort: https
   selector:
-    app: wasmcloud-operator
+    app: wadm-operator
   type: ClusterIP

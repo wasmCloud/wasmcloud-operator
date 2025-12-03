@@ -1,4 +1,6 @@
-# wasmcloud-operator
+# wadm-operator
+
+> **Note**: This operator is for wasmCloud v1 only and is not compatible with wasmCloud v2.
 
 An operator for managing a set of [wasmCloud hosts](https://github.com/wasmCloud/wasmCloud/) running on Kubernetes and
 manage [wasmCloud applications using wadm](https://github.com/wasmcloud/wadm).
@@ -219,4 +221,4 @@ data:
 ## Types crate
 
 This repo stores the types for any CRDs used by the operator in a separate
-crate (`wasmcloud-operator-types`) so that they can be reused in other projects.
+crate (`wadm-operator-types`) so that they can be reused in other projects.
