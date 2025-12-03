@@ -5,8 +5,8 @@ WORKDIR /app
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release && cp target/release/wasmcloud-operator .
+    cargo build --release && cp target/release/wadm-operator .
 
 FROM gcr.io/distroless/cc-debian12
-COPY --from=builder /app/wasmcloud-operator /usr/local/bin/
-ENTRYPOINT ["/usr/local/bin/wasmcloud-operator"]
+COPY --from=builder /app/wadm-operator /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/wadm-operator"]

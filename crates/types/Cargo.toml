@@ -1,5 +1,5 @@
 [package]
-name = "wasmcloud-operator-types"
+name = "wadm-operator-types"
 version = "0.1.9"
 edition = "2021"
 

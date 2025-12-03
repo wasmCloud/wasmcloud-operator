@@ -288,7 +288,7 @@ const OPENAPI_V2_SPEC_JSON: &str = r##"
 {
   "swagger": "2.0",
   "info": {
-    "title": "wasmcloud-operator",
+    "title": "wadm-operator",
     "description": "The OAM Application API provides a way to manage applications in a Kubernetes cluster.",
     "license": {
       "name": "Apache 2.0"

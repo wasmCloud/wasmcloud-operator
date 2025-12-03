@@ -1,11 +1,11 @@
 [package]
-name = "wasmcloud-operator"
+name = "wadm-operator"
 version = "0.5.0"
 edition = "2021"
 
 [[bin]]
 doc = false
-name = "wasmcloud-operator"
+name = "wadm-operator"
 path = "src/main.rs"
 
 [[bin]]
@@ -54,7 +54,7 @@ uuid = { workspace = true }
 wadm = { workspace = true }
 wadm-client = { workspace = true }
 wadm-types = { workspace = true }
-wasmcloud-operator-types = { workspace = true }
+wadm-operator-types = { workspace = true }
 
 [workspace.dependencies]
 async-nats = "0.33"
@@ -97,7 +97,7 @@ uuid = { version = "1", features = ["v5"] }
 wadm = "0.13.1"
 wadm-client = "0.2.0"
 wadm-types = "0.2.0"
-wasmcloud-operator-types = { version = "*", path = "./crates/types" }
+wadm-operator-types = { version = "*", path = "./crates/types" }
 
 [workspace]
 members = ["crates/*"]

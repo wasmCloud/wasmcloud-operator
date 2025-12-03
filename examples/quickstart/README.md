@@ -41,7 +41,7 @@ Validate installation with:
 
 ```bash
 # make sure pods are ready
-kubectl rollout status deploy -l app=wasmcloud-operator -n wasmcloud-operator
+kubectl rollout status deploy -l app=wadm-operator -n wadm-operator
 # apiservice should be available
 kubectl get apiservices.apiregistration.k8s.io v1beta1.core.oam.dev
 ```

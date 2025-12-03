@@ -50,8 +50,8 @@ jobs:
       - name: Store artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasmcloud-operator-${{matrix.arch}}
-          path: target/${{matrix.arch}}-unknown-linux-musl/release/wasmcloud-operator
+          name: wadm-operator-${{matrix.arch}}
+          path: target/${{matrix.arch}}-unknown-linux-musl/release/wadm-operator
 
   release:
     needs:
@@ -102,9 +102,9 @@ jobs:
 
       - name: Fix permissions and architectures
         run: |
-          mv artifacts/wasmcloud-operator-x86_64/wasmcloud-operator artifacts/wasmcloud-operator-amd64
-          mv artifacts/wasmcloud-operator-aarch64/wasmcloud-operator artifacts/wasmcloud-operator-arm64
-          chmod +x artifacts/wasmcloud-operator*
+          mv artifacts/wadm-operator-x86_64/wadm-operator artifacts/wadm-operator-amd64
+          mv artifacts/wadm-operator-aarch64/wadm-operator artifacts/wadm-operator-arm64
+          chmod +x artifacts/wadm-operator*
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -114,7 +114,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
-          build-args: "BIN_PATH=artifacts/wasmcloud-operator"
+          build-args: "BIN_PATH=artifacts/wadm-operator"
 
       - name: Build and push Docker image (wolfi)
         uses: docker/build-push-action@v6
@@ -125,4 +125,4 @@ jobs:
           tags: ${{ steps.meta_wolfi.outputs.tags }}
           labels: ${{ steps.meta_wolfi.outputs.labels }}
           platforms: linux/amd64,linux/arm64
-          build-args: "BIN_PATH=artifacts/wasmcloud-operator"
+          build-args: "BIN_PATH=artifacts/wadm-operator"

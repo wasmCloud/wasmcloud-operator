@@ -31,7 +31,7 @@ use std::str::from_utf8;
 use std::sync::Arc;
 use tokio::{sync::RwLock, time::Duration};
 use tracing::{debug, info, warn};
-use wasmcloud_operator_types::v1alpha1::{
+use wadm_operator_types::v1alpha1::{
     AppStatus, WasmCloudHostConfig, WasmCloudHostConfigSpec, WasmCloudHostConfigStatus,
 };
 
@@ -44,9 +44,9 @@ pub const K8S_HOST_TAG: &str = "kubernetes";
 pub const WASMCLOUD_ROUTE_TO_LABEL: &str = "wasmcloud.dev/route-to";
 /// Prefix used to apply host labels to pods
 pub const WASMCLOUD_OPERATOR_HOST_LABEL_PREFIX: &str = "host-label.k8s.wasmcloud.dev";
-/// Label used to identify resources managed by the wasmcloud operator
+/// Label used to identify resources managed by the wadm operator
 pub const WASMCLOUD_OPERATOR_MANAGED_BY_LABEL_REQUIREMENT: &str =
-    "app.kubernetes.io/managed-by=wasmcloud-operator";
+    "app.kubernetes.io/managed-by=wadm-operator";
 
 pub struct Context {
     pub client: KubeClient,
@@ -1170,7 +1170,7 @@ pub(crate) fn common_labels() -> BTreeMap<String, String> {
         ),
         (
             "app.kubernetes.io/managed-by".to_string(),
-            "wasmcloud-operator".to_string(),
+            "wadm-operator".to_string(),
         ),
     ])
 }

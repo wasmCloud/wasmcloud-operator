@@ -1,6 +1,6 @@
 - op: add
   path: /spec/template/spec/containers/0/image
-  value: localhost:5001/wasmcloud-operator:latest
+  value: localhost:5001/wadm-operator:latest
 - op: replace
   path: /spec/template/spec/containers/0/env/0
   value:

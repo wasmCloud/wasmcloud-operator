@@ -1,4 +1,4 @@
-repo := ghcr.io/wasmcloud/wasmcloud-operator
+repo := ghcr.io/wasmcloud/wadm-operator
 version := $(shell git rev-parse --short HEAD)
 platforms := linux/amd64,linux/arm64
 

@@ -27,7 +27,7 @@ use wadm_types::{
     Manifest,
 };
 
-use wasmcloud_operator_types::v1alpha1::WasmCloudHostConfig;
+use wadm_operator_types::v1alpha1::WasmCloudHostConfig;
 
 use crate::{
     controller::State,

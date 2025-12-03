@@ -1,9 +1,9 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "wasmcloud-operator.cluster-role" . }}
+  name: {{ include "wadm-operator.cluster-role" . }}
   labels:
-    {{- include "wasmcloud-operator.labels" . | nindent 4 }}
+    {{- include "wadm-operator.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -90,23 +90,23 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "wasmcloud-operator.cluster-role-binding" . }}
+  name: {{ include "wadm-operator.cluster-role-binding" . }}
   labels:
-    {{- include "wasmcloud-operator.labels" . | nindent 4 }}
+    {{- include "wadm-operator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "wasmcloud-operator.cluster-role" . }}
+  name: {{ include "wadm-operator.cluster-role" . }}
 subjects:
   - apiGroup: ""
     kind: ServiceAccount
-    name: {{ include "wasmcloud-operator.service-account" . }}
-    namespace: {{ include "wasmcloud-operator.namespace" . }}
+    name: {{ include "wadm-operator.service-account" . }}
+    namespace: {{ include "wadm-operator.namespace" . }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "wasmcloud-operator.cluster-role-binding" . }}-delegator
+  name: {{ include "wadm-operator.cluster-role-binding" . }}-delegator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -114,5 +114,5 @@ roleRef:
 subjects:
   - apiGroup: ""
     kind: ServiceAccount
-    name: {{ include "wasmcloud-operator.service-account" . }}
-    namespace: {{ include "wasmcloud-operator.namespace" . }}
+    name: {{ include "wadm-operator.service-account" . }}
+    namespace: {{ include "wadm-operator.namespace" . }}
