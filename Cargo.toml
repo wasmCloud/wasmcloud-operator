@@ -61,7 +61,7 @@ async-nats = "0.33"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
-config = { version = "0.14", default-features = false, features = [
+config = { version = "0.15", default-features = false, features = [
   "convert-case",
   "async",
 ] }
