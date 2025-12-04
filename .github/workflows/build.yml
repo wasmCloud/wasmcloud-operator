@@ -48,7 +48,7 @@ jobs:
           cargo zigbuild --release --target ${{matrix.arch}}-unknown-linux-musl
 
       - name: Store artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: wadm-operator-${{matrix.arch}}
           path: target/${{matrix.arch}}-unknown-linux-musl/release/wadm-operator
