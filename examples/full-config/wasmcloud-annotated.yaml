@@ -17,11 +17,6 @@ spec:
   # Optional: The image to use for the wasmCloud host.
   # If provided, the 'version' field will be ignored.
   image: "registry/wasmcloud:tag"
-  # Optional: The image to use for the NATS leaf that is deployed alongside the wasmCloud host.
-  # If not provided, the default upstream image will be used.
-  natsLeafImage: "registry/nats:tag"
-  # Optional. The name of a secret containing a set of NATS credentials under 'nats.creds' key.
-  secretName: "wasmcloud-host-nats-secret"
   # Optional: Enable structured logging for host logs. Defaults to "false".
   enableStructuredLogging: true
   # Optional: The name of a secret containing the registry credentials.
@@ -29,15 +24,51 @@ spec:
   registryCredentialsSecret: "wasmcloud-pull-secret"
   # Optional: The control topic prefix to use for the host. Defaults to "wasmbus.ctl"
   controlTopicPrefix: "wasmbus.custom-ctl"
-  # Optional: The leaf node domain to use for the NATS sidecar. Defaults to "leaf".
-  leafNodeDomain: "custom-leaf"
   # Optional: Enable the config service for this host. Defaults to "false".
   # Makes wasmCloud host issue requests to a config service on startup.
   configServiceEnabled: true
   # Optional: The log level to use for the host. Defaults to "INFO".
   logLevel: INFO
-  # Optional: The address of the NATS server to connect to. Defaults to "nats://nats.default.svc.cluster.local".
-  natsAddress: nats://nats.default.svc.cluster.local
+  # Optional: Configuration for the NATS leaf node sidecar.
+  natsLeaf:
+    # Optional: The image to use for the NATS leaf container.
+    image: "registry/nats:tag"
+    # Optional: The leaf node domain to use for the NATS sidecar. Defaults to "leaf".
+    domain: "custom-leaf"
+    # Optional: The address of the NATS server to connect to. Defaults to "nats://nats.default.svc.cluster.local".
+    address: "nats://nats.default.svc.cluster.local"
+    # Optional: The port of the NATS server to connect to. Defaults to 4222.
+    clientPort: 4222
+    # Optional: The port of the NATS server to connect to for leaf node connections. Defaults to 7422.
+    leafnodePort: 7422
+    # Optional: The Jetstream domain to use for the NATS sidecar. Defaults to "default".
+    jetstreamDomain: "default"
+    # Optional: The name of a secret containing a set of NATS credentials under 'nats.creds' key.
+    credentialsSecret: "wasmcloud-host-nats-secret"
+    # Optional: TLS configuration for the NATS leaf node connection.
+    tls:
+      # Path to the CA certificate file for verifying the server's certificate.
+      ca: "/nats/ca/ca-certificates.crt"
+      # Path to the client certificate file for mTLS authentication.
+      cert: "/nats/certs/tls.crt"
+      # Path to the client private key file for mTLS authentication.
+      key: "/nats/certs/tls.key"
+    # Optional: Extra volumes to add to the pod for the NATS leaf container.
+    extraVolumes:
+      - name: nats-ca
+        configMap:
+          name: global-trust-bundle
+      - name: nats-certs
+        secret:
+          secretName: nats-client-tls
+    # Optional: Extra volume mounts to add to the NATS leaf container.
+    extraVolumeMounts:
+      - name: nats-ca
+        mountPath: "/nats/ca"
+        readOnly: true
+      - name: nats-certs
+        mountPath: "/nats/certs"
+        readOnly: true
   # Optional: Allow the host to deploy using the latest tag on OCI components or providers. Defaults to "false".
   allowLatest: true
   # Optional: Allow the host to pull artifacts from OCI registries insecurely.

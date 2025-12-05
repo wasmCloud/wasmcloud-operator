@@ -368,8 +368,8 @@ pub async fn list_all_applications(
         // Prevent listing applications within a given lattice more than once
         if !lattices.contains(&lattice_id) {
             let result = match list_apps(
-                &cfg.spec.nats_address,
-                &cfg.spec.nats_client_port,
+                &cfg.spec.effective_nats_address(),
+                &cfg.spec.effective_nats_client_port(),
                 secret,
                 lattice_id.clone(),
             )
@@ -429,8 +429,8 @@ pub async fn list_applications(
         // This is to check that we don't list a lattice more than once
         if !lattices.contains(&lattice_id) {
             let result = match list_apps(
-                &cfg.spec.nats_address,
-                &cfg.spec.nats_client_port,
+                &cfg.spec.effective_nats_address(),
+                &cfg.spec.effective_nats_client_port(),
                 secret,
                 lattice_id.clone(),
             )
@@ -732,11 +732,11 @@ async fn get_lattice_connection(
     let connection_data =
         cfgs.map(|cfg| (cfg, namespace.clone()))
             .filter_map(|(cfg, namespace)| {
-                let cluster_url = cfg.spec.nats_address;
-                let lattice_id = cfg.spec.lattice;
+                let cluster_url = cfg.spec.effective_nats_address();
+                let lattice_id = cfg.spec.lattice.clone();
                 let lattice_name = cfg.metadata.name?;
                 let nst: NameNamespace = NameNamespace::new(lattice_name, namespace);
-                let port = cfg.spec.nats_client_port;
+                let port = cfg.spec.effective_nats_client_port();
                 Some((cluster_url, nst, lattice_id, port))
             });
 

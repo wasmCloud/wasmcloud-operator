@@ -5,3 +5,18 @@ metadata:
 spec:
   lattice: default
   version: "1.0.4"
+  # Optional: Configure the NATS leaf sidecar with TLS support
+  # natsLeaf:
+  #   address: nats://nats.default.svc.cluster.local
+  #   credentialsSecret: "wasmcloud-nats-creds"
+  #   jetstreamDomain: "default"
+  #   tls:
+  #     ca: "/nats/ca/ca-certificates.crt"
+  #   extraVolumes:
+  #     - name: nats-ca
+  #       configMap:
+  #         name: my-ca-bundle
+  #   extraVolumeMounts:
+  #     - name: nats-ca
+  #       mountPath: "/nats/ca"
+  #       readOnly: true
