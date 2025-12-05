@@ -57,7 +57,7 @@ wadm-types = { workspace = true }
 wadm-operator-types = { workspace = true }
 
 [workspace.dependencies]
-async-nats = "0.33"
+async-nats = "0.37"
 axum = { version = "0.6", features = ["headers"] }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
 anyhow = "1"
