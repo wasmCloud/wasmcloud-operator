@@ -2212,14 +2212,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.10.2"
+version = "1.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "380b951a9c5e80ddfd6136919eef32310721aa4aacd4889a8d39124b026ab343"
+checksum = "843bc0191f75f3e22651ae5f1e72939ab2f72a4bc30fa80a066bd66edefc24d4"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.3",
- "regex-syntax 0.8.2",
+ "regex-automata 0.4.13",
+ "regex-syntax 0.8.8",
 ]
 
 [[package]]
@@ -2233,13 +2233,13 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.3"
+version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f804c7828047e88b2d32e2d7fe5a105da8ee3264f01902f796c8e067dc2483f"
+checksum = "5276caf25ac86c8d810222b3dbb938e512c55c6831a10f3e6ed1c93b84041f1c"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.2",
+ "regex-syntax 0.8.8",
 ]
 
 [[package]]
@@ -2250,9 +2250,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.2"
+version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
+checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "reqwest"
@@ -3418,7 +3418,7 @@ dependencies = [
  "tracing-futures",
  "ulid",
  "uuid",
- "wadm-types",
+ "wadm-types 0.2.0",
  "wasmcloud-control-interface",
  "wasmcloud-secrets-types",
 ]
@@ -3441,7 +3441,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-futures",
- "wadm-types",
+ "wadm-types 0.2.0",
 ]
 
 [[package]]
@@ -3481,7 +3481,7 @@ dependencies = [
  "wadm",
  "wadm-client",
  "wadm-operator-types",
- "wadm-types",
+ "wadm-types 0.3.0",
 ]
 
 [[package]]
@@ -3512,6 +3512,42 @@ dependencies = [
  "jsonschema",
  "lazy_static",
  "nkeys 0.3.2",
+ "rand",
+ "regex",
+ "schemars",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-futures",
+ "ulid",
+ "utoipa",
+ "uuid",
+ "wasmcloud-control-interface",
+ "wasmcloud-secrets-types",
+]
+
+[[package]]
+name = "wadm-types"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "253b4a5c06d99f8d6768d69a1ba264652731cd298c87fd880077ad0e554840f2"
+dependencies = [
+ "anyhow",
+ "async-nats",
+ "async-trait",
+ "base64 0.22.1",
+ "bytes",
+ "chrono",
+ "cloudevents-sdk",
+ "indexmap 2.0.2",
+ "jsonschema",
+ "lazy_static",
+ "nkeys 0.4.3",
  "rand",
  "regex",
  "schemars",

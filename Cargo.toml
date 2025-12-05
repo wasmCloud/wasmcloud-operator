@@ -96,7 +96,7 @@ utoipa = { version = "4.2", features = ["axum_extras"] }
 uuid = { version = "1", features = ["v5"] }
 wadm = "0.13.1"
 wadm-client = "0.2.0"
-wadm-types = "0.2.0"
+wadm-types = "0.3.0"
 wadm-operator-types = { version = "*", path = "./crates/types" }
 
 [workspace]
