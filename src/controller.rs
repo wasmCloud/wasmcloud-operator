@@ -114,8 +114,8 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
 
     let mut secrets = Secrets::default();
 
-    if let Some(secret_name) = &cfg.spec.secret_name {
-        let kube_secrets = secrets_api.get(secret_name).await.map_err(|e| {
+    if let Some(secret_name) = cfg.spec.effective_credentials_secret() {
+        let kube_secrets = secrets_api.get(&secret_name).await.map_err(|e| {
             warn!("Failed to read secrets: {}", e);
             e
         })?;
@@ -159,8 +159,8 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
 
     let nc = secrets.nats_creds.map(SecretString::new);
     let apps = crate::resources::application::list_apps(
-        &cfg.spec.nats_address,
-        &cfg.spec.nats_client_port,
+        &cfg.spec.effective_nats_address(),
+        &cfg.spec.effective_nats_client_port(),
         nc.as_ref(),
         cfg.spec.lattice.clone(),
     )
@@ -197,8 +197,8 @@ async fn reconcile_crd(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Resul
 
     // Start the watcher so that services are automatically created in the cluster.
     let nats_client = get_nats_client(
-        &cfg.spec.nats_address,
-        &cfg.spec.nats_client_port,
+        &cfg.spec.effective_nats_address(),
+        &cfg.spec.effective_nats_client_port(),
         ctx.nats_creds.clone(),
         NameNamespace::new(name.clone(), ns.clone()),
     )
@@ -270,7 +270,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         },
         EnvVar {
             name: "WASMCLOUD_JS_DOMAIN".to_string(),
-            value: Some(config.spec.jetstream_domain.clone()),
+            value: Some(config.spec.effective_jetstream_domain()),
             ..Default::default()
         },
         EnvVar {
@@ -409,10 +409,10 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         None => format!("ghcr.io/wasmcloud/wasmcloud:{}", config.spec.version),
     };
 
-    let leaf_image = match &config.spec.nats_leaf_image {
-        Some(img) => img.clone(),
-        None => "nats:2.10-alpine".to_string(),
-    };
+    let leaf_image = config
+        .spec
+        .effective_nats_leaf_image()
+        .unwrap_or_else(|| "nats:2.10-alpine".to_string());
 
     let mut volumes = vec![Volume {
         name: "nats-config".to_string(),
@@ -430,6 +430,9 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         sub_path: Some("nats.conf".to_string()),
         ..Default::default()
     }];
+
+    volumes.extend(config.spec.nats_leaf_extra_volumes());
+    nats_volume_mounts.extend(config.spec.nats_leaf_extra_volume_mounts());
 
     let mut wasm_volume_mounts: Vec<VolumeMount> = vec![];
     if let Some(authorities) = &config
@@ -528,7 +531,7 @@ async fn pod_template(config: &WasmCloudHostConfig, ctx: Arc<Context>) -> Result
         }
     }
 
-    if let Some(secret_name) = &config.spec.secret_name {
+    if let Some(secret_name) = &config.spec.effective_credentials_secret() {
         volumes.push(Volume {
             name: "nats-creds".to_string(),
             secret: Some(SecretVolumeSource {
@@ -1044,12 +1047,33 @@ leafnodes {
       {{#if use_credentials}}
       credentials: "/nats/nats.creds"
       {{/if}}
+      {{#if tls_enabled}}
+      tls: {
+        {{#if tls_ca}}ca_file: "{{tls_ca}}"{{/if}}
+        {{#if tls_cert}}cert_file: "{{tls_cert}}"{{/if}}
+        {{#if tls_key}}key_file: "{{tls_key}}"{{/if}}
+      }
+      {{/if}}
     }
   ]
 }
 "#;
+    let tls = config.spec.nats_leaf_tls();
+    let tls_enabled = tls.map(|t| t.is_enabled()).unwrap_or(false);
     let tpl = Handlebars::new();
-    let rendered = tpl.render_template(template, &json!({"jetstream_domain": config.spec.leaf_node_domain, "cluster_url": config.spec.nats_address, "leafnode_port": config.spec.nats_leafnode_port,"use_credentials": use_nats_creds}))?;
+    let rendered = tpl.render_template(
+        template,
+        &json!({
+            "jetstream_domain": config.spec.effective_leaf_node_domain(),
+            "cluster_url": config.spec.effective_nats_address(),
+            "leafnode_port": config.spec.effective_nats_leafnode_port(),
+            "use_credentials": use_nats_creds,
+            "tls_enabled": tls_enabled,
+            "tls_ca": tls.and_then(|t| t.ca.clone()),
+            "tls_cert": tls.and_then(|t| t.cert.clone()),
+            "tls_key": tls.and_then(|t| t.key.clone()),
+        }),
+    )?;
     let mut contents = BTreeMap::new();
     contents.insert("nats.conf".to_string(), rendered);
     let cm = ConfigMap {

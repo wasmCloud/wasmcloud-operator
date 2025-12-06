@@ -61,3 +61,20 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+# Extra environment variables to add to the operator container
+extraEnv: []
+  # - name: SSL_CERT_FILE
+  #   value: /custom-certs/ca-certificates.crt
+
+# Extra volumes to add to the pod
+extraVolumes: []
+  # - name: custom-certs
+  #   configMap:
+  #     name: combined-ca-bundle
+
+# Extra volume mounts to add to the operator container
+extraVolumeMounts: []
+  # - name: custom-certs
+  #   mountPath: /custom-certs
+  #   readOnly: true

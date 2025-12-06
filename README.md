@@ -66,7 +66,7 @@ spec:
   image: registry.example.com/wasmcloud:1.0.2
 ```
 
-For the NATS leaf, use the `natsImageLeaf` field:
+For the NATS leaf sidecar, use the `natsLeaf` configuration block:
 
 ```yaml
 apiVersion: k8s.wasmcloud.dev/v1alpha1
@@ -75,7 +75,47 @@ metadata:
   name: my-wasmcloud-cluster
 spec:
   # other config options omitted
-  natsLeafImage: registry.example.com/nats:2.10.16
+  natsLeaf:
+    image: registry.example.com/nats:2.10.16
+    address: nats://nats.default.svc.cluster.local
+    credentialsSecret: wasmcloud-nats-creds
+    jetstreamDomain: default
+```
+
+#### Configuring TLS for the NATS leaf connection
+
+If your NATS server uses TLS, you can configure the leaf node to verify the server certificate by providing a CA certificate. Use `extraVolumes` and `extraVolumeMounts` to mount the certificate into the container:
+
+```yaml
+apiVersion: k8s.wasmcloud.dev/v1alpha1
+kind: WasmCloudHostConfig
+metadata:
+  name: my-wasmcloud-cluster
+spec:
+  # other config options omitted
+  natsLeaf:
+    address: nats://nats.example.com
+    credentialsSecret: wasmcloud-nats-creds
+    jetstreamDomain: default
+    tls:
+      ca: /nats/ca/ca-certificates.crt
+    extraVolumes:
+      - name: nats-ca
+        configMap:
+          name: my-ca-bundle
+    extraVolumeMounts:
+      - name: nats-ca
+        mountPath: /nats/ca
+        readOnly: true
+```
+
+For mTLS (mutual TLS), you can also provide client certificate and key paths:
+
+```yaml
+    tls:
+      ca: /nats/ca/ca-certificates.crt
+      cert: /nats/certs/tls.crt
+      key: /nats/certs/tls.key
 ```
 
 ### Image Pull Secrets
